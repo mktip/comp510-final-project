@@ -67,7 +67,7 @@ enum { Frame = 0, Solid = 1, NumRenderModes = 2 };
 
 int RenderMode = Solid;
 int ObjectType = Sphere;
-int Axis = Xaxis;
+int Axis = Yaxis;
 GLfloat Theta[NumAxes] = {0.0, 0.0, 0.0};
 
 // Model-view and projection matrices uniform location
@@ -388,6 +388,9 @@ void create_sphere() {
 GLfloat dt = 0.01;
 
 void update(void) {
+
+  // Rotate the cube by 1 degree
+  // Theta[Zaxis] = (GLfloat) (((int) Theta[Zaxis] + 359) % 360);
 
   switch (RenderMode) {
   // TODO: maybe recheck if it can be done only for the front
