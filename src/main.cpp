@@ -9,38 +9,37 @@
 #include <sstream>
 #include <vector>
 
+// Window size in pixels
 const int xpix = 1280;
 const int ypix = 720;
+const GLfloat screen_ratio = (GLfloat)xpix / (GLfloat)ypix;
 
+// Sphere constants
 #define SECTOR_COUNT 10
 #define STACK_COUNT 10
 
-typedef vec4 color4;
-typedef vec4 point4;
-
-GLuint vao1;
-GLuint vao2;
-GLuint vao3;
-
+// Object size modifier
 const GLfloat radius = 0.05;
+
+// The number of vertices in each object
 const int NumCubeVertices = 36;
 const int NumSphereVertices = SECTOR_COUNT * STACK_COUNT * 6;
 const int NumRabbitVertices = 9840 * 3;
 
-const GLfloat screen_ratio = (GLfloat)xpix / (GLfloat)ypix;
 
-GLuint program = 0;
+typedef vec4 color4;
+typedef vec4 point4;
 
-struct Vertex {
-  float x, y, z;
-  float nx, ny, nz;
-};
 
-void create_sphere();
-void load_rabbit();
-
+// point arrays for the objects
 point4 cube_points[NumCubeVertices];
 color4 cube_colors[NumCubeVertices];
+
+point4 sphere_points[NumSphereVertices];
+color4 sphere_colors[NumSphereVertices];
+
+point4 rabbit_points[NumRabbitVertices];
+color4 rabbit_colors[NumRabbitVertices];
 
 // Vertices of a unit cube centered at origin, sides aligned with axes
 point4 vertices[8] = {point4(-radius, -radius, radius, 1.0),
@@ -64,11 +63,6 @@ color4 vertex_colors[8] = {
     color4(0.0, 1.0, 1.0, 1.0)  // cyan
 };
 
-point4 sphere_points[NumSphereVertices];
-color4 sphere_colors[NumSphereVertices];
-
-point4 rabbit_points[NumRabbitVertices];
-color4 rabbit_colors[NumRabbitVertices];
 
 // Array of rotation angles (in degrees) for each coordinate axis
 enum { Xaxis = 0, Yaxis = 1, Zaxis = 2, NumAxes = 3 };
@@ -77,9 +71,10 @@ enum { Color1 = 0, Color2 = 1, Color3 = 2, NumColors = 3 };
 enum { Frame = 0, Solid = 1, NumRenderModes = 2 };
 
 int RenderMode = Solid;
-int ObjectType = Rabbit;
+int ObjectType = Sphere;
 int Color = Color1;
 int Axis = Yaxis;
+
 GLfloat Theta[NumAxes] = {0.0, 0.0, 0.0};
 
 // Model-view and projection matrices uniform location
@@ -129,38 +124,47 @@ void colorcube() {
 // init
 //
 
+void create_sphere();
+void load_rabbit();
+
+GLuint vao1;
+GLuint vao2;
+GLuint vao3;
+
+GLuint program = 0;
+
 GLuint cube_buffer;
 GLuint sphere_buffer;
 GLuint rabbit_buffer;
 
-void display_sphere_buffer() {
+// This function readies the given object for display with the given points and colors
+void display_object(GLuint object_buffer, point4* object_points, color4* object_colors, int num_vertices, GLuint vao) {
+  glBindVertexArray(vao);
+  glBindBuffer(GL_ARRAY_BUFFER, object_buffer);
+  glBufferData(GL_ARRAY_BUFFER, num_vertices * sizeof(point4) + num_vertices * sizeof(color4), NULL, GL_STATIC_DRAW);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, num_vertices * sizeof(point4), object_points);
 
-  glBindVertexArray(vao1);
-  glBindBuffer(GL_ARRAY_BUFFER, sphere_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_points) + sizeof(sphere_colors),
-               NULL, GL_STATIC_DRAW);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(sphere_points), sphere_points);
 
   switch (Color) {
   case Color1:
-    for (int i = 0; i < NumSphereVertices; i++) {
-      sphere_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
+    for (int i = 0; i < num_vertices; i++) {
+      object_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
     }
     break;
   case Color2:
-    for (int i = 0; i < NumSphereVertices; i++) {
-      sphere_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
+    for (int i = 0; i < num_vertices; i++) {
+      object_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
     }
     break;
   case Color3:
-    for (int i = 0; i < NumSphereVertices; i++) {
-      sphere_colors[i] = vertex_colors[i % 8];
+    for (int i = 0; i < num_vertices; i++) {
+      object_colors[i] = vertex_colors[i % 8];
     }
     break;
   }
 
-  glBufferSubData(GL_ARRAY_BUFFER, sizeof(sphere_points), sizeof(sphere_colors),
-                  sphere_colors);
+  glBufferSubData(GL_ARRAY_BUFFER, num_vertices * sizeof(point4), num_vertices * sizeof(color4),
+                  object_colors);
 
   // set up vertex arrays
   GLuint vPosition = glGetAttribLocation(program, "vPosition");
@@ -170,87 +174,10 @@ void display_sphere_buffer() {
   GLuint vColor = glGetAttribLocation(program, "vColor");
   glEnableVertexAttribArray(vColor);
   glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(sizeof(sphere_points)));
+                        BUFFER_OFFSET(sizeof(point4) * num_vertices));
 }
 
-void display_cube_buffer() {
-  glBindVertexArray(vao2);
-  glBindBuffer(GL_ARRAY_BUFFER, cube_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(cube_points) + sizeof(cube_colors), NULL,
-               GL_STATIC_DRAW);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(cube_points), cube_points);
-
-  switch (Color) {
-  case Color1:
-    for (int i = 0; i < NumCubeVertices; i++) {
-      cube_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
-    }
-    break;
-  case Color2:
-    for (int i = 0; i < NumCubeVertices; i++) {
-      cube_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
-    }
-    break;
-  case Color3:
-    for (int i = 0; i < NumCubeVertices; i++) {
-      cube_colors[i] = vertex_colors[i % 8];
-    }
-    break;
-  }
-
-  glBufferSubData(GL_ARRAY_BUFFER, sizeof(cube_points), sizeof(cube_colors),
-                  cube_colors);
-
-  // set up vertex arrays
-  GLuint vPosition = glGetAttribLocation(program, "vPosition");
-  glEnableVertexAttribArray(vPosition);
-  glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-  GLuint vColor = glGetAttribLocation(program, "vColor");
-  glEnableVertexAttribArray(vColor);
-  glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(sizeof(cube_points)));
-}
-
-void display_rabbit_buffer() {
-  glBindVertexArray(vao3);
-  glBindBuffer(GL_ARRAY_BUFFER, rabbit_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(rabbit_points) + sizeof(rabbit_colors),
-               NULL, GL_STATIC_DRAW);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(rabbit_points), rabbit_points);
-
-  switch (Color) {
-  case Color1:
-    for (int i = 0; i < NumRabbitVertices; i++) {
-      rabbit_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
-    }
-    break;
-  case Color2:
-    for (int i = 0; i < NumRabbitVertices; i++) {
-      rabbit_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
-    }
-    break;
-  case Color3:
-    for (int i = 0; i < NumRabbitVertices; i++) {
-      rabbit_colors[i] = vertex_colors[i % 8];
-    }
-    break;
-  }
-
-  glBufferSubData(GL_ARRAY_BUFFER, sizeof(rabbit_points), sizeof(rabbit_colors),
-                  rabbit_colors);
-
-  // set up vertex arrays
-  GLuint vPosition = glGetAttribLocation(program, "vPosition");
-  glEnableVertexAttribArray(vPosition);
-  glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-  GLuint vColor = glGetAttribLocation(program, "vColor");
-  glEnableVertexAttribArray(vColor);
-  glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(sizeof(rabbit_points)));
-}
-
+// Have an error callback to make sure to catch any errors
 void errorCallback(int error, const char *description) {
   std::cerr << "OpenGL error " << error << ": " << description << std::endl;
 }
@@ -261,8 +188,8 @@ void init() {
   program = InitShader("shaders/vshader.glsl", "shaders/fshader.glsl");
   glUseProgram(program);
 
-  colorcube(); // create the cube in terms of 6 faces each of which is made of
-               // two triangles
+  // Create/load the points for each object
+  colorcube();
   create_sphere();
   load_rabbit();
 
@@ -275,7 +202,8 @@ void init() {
   glGenBuffers(1, &cube_buffer);
   glGenBuffers(1, &rabbit_buffer);
 
-  display_rabbit_buffer();
+
+  display_sphere_buffer();
 
   // Retrieve transformation uniform variable locations
   ModelView = glGetUniformLocation(program, "ModelView");
@@ -379,6 +307,10 @@ void mouse_button_callback(GLFWwindow *window, int button, int action,
   }
 }
 
+// create_sphere
+// This function creates a sphere with a given stack and sector count
+// (specified by the constants STACK_COUNT and SECTOR_COUNT)
+// Adopted from: http://www.songho.ca/opengl/gl_sphere.html
 void create_sphere() {
 
   std::vector<vec4> sphere_vertices;
@@ -458,16 +390,18 @@ void update(void) {
 
   switch (ObjectType) {
   case Cube:
-    display_cube_buffer();
+    display_object(cube_buffer, cube_points, cube_colors, NumCubeVertices, vao1);
     break;
   case Sphere:
-    display_sphere_buffer();
+    display_object(sphere_buffer, sphere_points, sphere_colors, NumSphereVertices, vao2);
     break;
   case Rabbit:
-    display_rabbit_buffer();
+    display_object(rabbit_buffer, rabbit_points, rabbit_colors, NumRabbitVertices, vao3);
     break;
   }
 
+  // if movement is stopped, don't continue moving, and make sure the object is
+  // touching the floor
   if (velocity.y < zero && velocity.x < zero) {
     switch (ObjectType) {
     case Cube:
@@ -489,10 +423,10 @@ void update(void) {
   // keep the cube moving horizontally
   velocity.y = velocity.y + y_acceleration * dt;
 
+  // bounce the object off the floor (while reducing its speed overall on each bounce)
   switch (ObjectType) {
   case Cube:
   case Sphere:
-    // bounce the cube/sphere off the floor
     if (displacement.y < -1.0 + radius) {
       displacement.y = -1.0 + radius;
       velocity.y = -velocity.y * 0.75;
@@ -509,6 +443,11 @@ void update(void) {
   }
 }
 
+// load_rabbit opens the rabbit .off model and parses it into a list of vertices
+// then a list of indices, then for each index, it adds the corresponding
+// vertex to the rabbit_points array
+// The size is scaled down to fit into the screen, while still allowing tthe
+// wireframes to be visible
 void load_rabbit() {
 
   std::ifstream file("models/bunny.off");
