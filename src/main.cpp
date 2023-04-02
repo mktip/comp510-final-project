@@ -330,6 +330,11 @@ void display(void) {
 }
 
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+
+  if (action != GLFW_PRESS) {
+    return;
+  }
+
   switch (key) {
   case GLFW_KEY_ESCAPE:
   case GLFW_KEY_Q:
@@ -502,11 +507,11 @@ void load_rabbit() {
     float x, y, z;
     iss >> y >> x >> y;
     x *= -1;
-    // x *= radius;
-    // y *= radius;
-    // z *= radius;
+    x *= 0.5 * radius;
+    y *= 0.5 * radius;
+    z *= 0.5 * radius;
 
-    rabbit_vertices.push_back(vec4(x / 25, y / 25, z / 25 , 1.0));
+    rabbit_vertices.push_back(vec4(x, y, z, 1.0));
   }
 
   std::vector<int> rabbit_indices;
