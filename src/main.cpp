@@ -202,9 +202,6 @@ void init() {
   glGenBuffers(1, &cube_buffer);
   glGenBuffers(1, &rabbit_buffer);
 
-
-  display_sphere_buffer();
-
   // Retrieve transformation uniform variable locations
   ModelView = glGetUniformLocation(program, "ModelView");
   Projection = glGetUniformLocation(program, "Projection");
