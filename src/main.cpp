@@ -3,11 +3,11 @@
 //
 
 #include "Angel.h"
-#include <vector>
 #include <cmath>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
+#include <vector>
 
 const int xpix = 1280;
 const int ypix = 720;
@@ -32,10 +32,9 @@ const GLfloat screen_ratio = (GLfloat)xpix / (GLfloat)ypix;
 GLuint program = 0;
 
 struct Vertex {
-   float x, y, z;
-   float nx, ny, nz;
+  float x, y, z;
+  float nx, ny, nz;
 };
-
 
 void create_sphere();
 void load_rabbit();
@@ -140,26 +139,24 @@ void display_sphere_buffer() {
   glBindBuffer(GL_ARRAY_BUFFER, sphere_buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_points) + sizeof(sphere_colors),
                NULL, GL_STATIC_DRAW);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(sphere_points),
-                  sphere_points);
-
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(sphere_points), sphere_points);
 
   switch (Color) {
-    case Color1:
-      for (int i = 0; i < NumSphereVertices; i++) {
-        sphere_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
-      }
-      break;
-    case Color2:
-      for (int i = 0; i < NumSphereVertices; i++) {
-        sphere_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
-      }
-      break;
-    case Color3:
-      for (int i = 0; i < NumSphereVertices; i++) {
-        sphere_colors[i] = vertex_colors[i % 8];
-      }
-      break;
+  case Color1:
+    for (int i = 0; i < NumSphereVertices; i++) {
+      sphere_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
+    }
+    break;
+  case Color2:
+    for (int i = 0; i < NumSphereVertices; i++) {
+      sphere_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
+    }
+    break;
+  case Color3:
+    for (int i = 0; i < NumSphereVertices; i++) {
+      sphere_colors[i] = vertex_colors[i % 8];
+    }
+    break;
   }
 
   glBufferSubData(GL_ARRAY_BUFFER, sizeof(sphere_points), sizeof(sphere_colors),
@@ -179,28 +176,30 @@ void display_sphere_buffer() {
 void display_cube_buffer() {
   glBindVertexArray(vao2);
   glBindBuffer(GL_ARRAY_BUFFER, cube_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(cube_points) + sizeof(cube_colors), NULL, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(cube_points) + sizeof(cube_colors), NULL,
+               GL_STATIC_DRAW);
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(cube_points), cube_points);
 
   switch (Color) {
-    case Color1:
-      for (int i = 0; i <  NumCubeVertices; i++) {
-        cube_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
-      }
-      break;
-    case Color2:
-      for (int i = 0; i <  NumCubeVertices; i++) {
-        cube_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
-      }
-      break;
-    case Color3:
-      for (int i = 0; i < NumCubeVertices; i++) {
-        cube_colors[i] = vertex_colors[i % 8];
-      }
-      break;
+  case Color1:
+    for (int i = 0; i < NumCubeVertices; i++) {
+      cube_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
+    }
+    break;
+  case Color2:
+    for (int i = 0; i < NumCubeVertices; i++) {
+      cube_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
+    }
+    break;
+  case Color3:
+    for (int i = 0; i < NumCubeVertices; i++) {
+      cube_colors[i] = vertex_colors[i % 8];
+    }
+    break;
   }
 
-  glBufferSubData(GL_ARRAY_BUFFER, sizeof(cube_points), sizeof(cube_colors), cube_colors);
+  glBufferSubData(GL_ARRAY_BUFFER, sizeof(cube_points), sizeof(cube_colors),
+                  cube_colors);
 
   // set up vertex arrays
   GLuint vPosition = glGetAttribLocation(program, "vPosition");
@@ -209,35 +208,37 @@ void display_cube_buffer() {
 
   GLuint vColor = glGetAttribLocation(program, "vColor");
   glEnableVertexAttribArray(vColor);
-  glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(cube_points)));
+  glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0,
+                        BUFFER_OFFSET(sizeof(cube_points)));
 }
 
 void display_rabbit_buffer() {
   glBindVertexArray(vao3);
   glBindBuffer(GL_ARRAY_BUFFER, rabbit_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(rabbit_points) + sizeof(rabbit_colors), NULL, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(rabbit_points) + sizeof(rabbit_colors),
+               NULL, GL_STATIC_DRAW);
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(rabbit_points), rabbit_points);
 
-
   switch (Color) {
-    case Color1:
-      for (int i = 0; i < NumRabbitVertices; i++) {
-        rabbit_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
-      }
-      break;
-    case Color2:
-      for (int i = 0; i < NumRabbitVertices; i++) {
-        rabbit_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
-      }
-      break;
-    case Color3:
-      for (int i = 0; i < NumRabbitVertices; i++) {
-        rabbit_colors[i] = vertex_colors[i % 8];
-      }
-      break;
+  case Color1:
+    for (int i = 0; i < NumRabbitVertices; i++) {
+      rabbit_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
+    }
+    break;
+  case Color2:
+    for (int i = 0; i < NumRabbitVertices; i++) {
+      rabbit_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
+    }
+    break;
+  case Color3:
+    for (int i = 0; i < NumRabbitVertices; i++) {
+      rabbit_colors[i] = vertex_colors[i % 8];
+    }
+    break;
   }
 
-  glBufferSubData(GL_ARRAY_BUFFER, sizeof(rabbit_points), sizeof(rabbit_colors), rabbit_colors);
+  glBufferSubData(GL_ARRAY_BUFFER, sizeof(rabbit_points), sizeof(rabbit_colors),
+                  rabbit_colors);
 
   // set up vertex arrays
   GLuint vPosition = glGetAttribLocation(program, "vPosition");
@@ -246,9 +247,9 @@ void display_rabbit_buffer() {
 
   GLuint vColor = glGetAttribLocation(program, "vColor");
   glEnableVertexAttribArray(vColor);
-  glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(rabbit_points)));
+  glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0,
+                        BUFFER_OFFSET(sizeof(rabbit_points)));
 }
-
 
 void errorCallback(int error, const char *description) {
   std::cerr << "OpenGL error " << error << ": " << description << std::endl;
@@ -260,10 +261,10 @@ void init() {
   program = InitShader("shaders/vshader.glsl", "shaders/fshader.glsl");
   glUseProgram(program);
 
-  colorcube(); // create the cube in terms of 6 faces each of which is made of two triangles
+  colorcube(); // create the cube in terms of 6 faces each of which is made of
+               // two triangles
   create_sphere();
   load_rabbit();
-
 
   // Create a vertex array object
   glGenVertexArrays(1, &vao1);
@@ -329,7 +330,8 @@ void display(void) {
   glFlush();
 }
 
-void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+void key_callback(GLFWwindow *window, int key, int scancode, int action,
+                  int mods) {
 
   if (action != GLFW_PRESS) {
     return;
@@ -353,13 +355,18 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     std::cout << "Press 'q' or 'esc' to quit" << std::endl;
     std::cout << "Press 'i' to reset the object" << std::endl;
     std::cout << "Press 'c' to toggle the color" << std::endl;
-    std::cout << "Click the left mouse button to toggle the render mode (solid, wireframe)" << std::endl;
-    std::cout << "Click the right mouse button to toggle the object type (rabbit, sphere, cube)" << std::endl;
+    std::cout << "Click the left mouse button to toggle the render mode "
+                 "(solid, wireframe)"
+              << std::endl;
+    std::cout << "Click the right mouse button to toggle the object type "
+                 "(rabbit, sphere, cube)"
+              << std::endl;
     std::cout << "Press 'h' to display this help message" << std::endl;
   }
 }
 
-void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
+void mouse_button_callback(GLFWwindow *window, int button, int action,
+                           int mods) {
   if (action == GLFW_PRESS) {
     switch (button) {
     case GLFW_MOUSE_BUTTON_RIGHT:
@@ -371,7 +378,6 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
     }
   }
 }
-
 
 void create_sphere() {
 
@@ -404,33 +410,27 @@ void create_sphere() {
 
   std::vector<int> sphere_indices;
   int k1, k2;
-  for(int i = 0; i < STACK_COUNT; ++i)
-  {
-      k1 = i * (SECTOR_COUNT + 1);     // beginning of current stack
-      k2 = k1 + SECTOR_COUNT + 1;      // beginning of next stack
+  for (int i = 0; i < STACK_COUNT; ++i) {
+    k1 = i * (SECTOR_COUNT + 1); // beginning of current stack
+    k2 = k1 + SECTOR_COUNT + 1;  // beginning of next stack
 
-      for(int j = 0; j < SECTOR_COUNT; ++j, ++k1, ++k2)
-      {
-          // 2 triangles per sector excluding first and last stacks
-          // k1 => k2 => k1+1
-          if(i != 0)
-          {
-              sphere_indices.push_back(k1);
-              sphere_indices.push_back(k2);
-              sphere_indices.push_back(k1 + 1);
-          }
-
-          // k1+1 => k2 => k2+1
-          if(i != (STACK_COUNT-1))
-          {
-              sphere_indices.push_back(k1 + 1);
-              sphere_indices.push_back(k2);
-              sphere_indices.push_back(k2 + 1);
-          }
+    for (int j = 0; j < SECTOR_COUNT; ++j, ++k1, ++k2) {
+      // 2 triangles per sector excluding first and last stacks
+      // k1 => k2 => k1+1
+      if (i != 0) {
+        sphere_indices.push_back(k1);
+        sphere_indices.push_back(k2);
+        sphere_indices.push_back(k1 + 1);
       }
+
+      // k1+1 => k2 => k2+1
+      if (i != (STACK_COUNT - 1)) {
+        sphere_indices.push_back(k1 + 1);
+        sphere_indices.push_back(k2);
+        sphere_indices.push_back(k2 + 1);
+      }
+    }
   }
-
-
 
   for (int i = 0; i < sphere_indices.size(); i++) {
     sphere_points[i] = sphere_vertices[sphere_indices[i]];
@@ -442,7 +442,6 @@ GLfloat dt = 0.01;
 GLfloat zero = 0.01;
 
 void update(void) {
-
 
   // Rotate the cube by 1 degree
   // Theta[Zaxis] = (GLfloat) (((int) Theta[Zaxis] + 359) % 360);
@@ -481,14 +480,25 @@ void update(void) {
   // keep the cube moving horizontally
   velocity.y = velocity.y + y_acceleration * dt;
 
-  // bounce the cube off the floor
-  if (displacement.y < -1.0 + radius) {
-    displacement.y = -1.0 + radius;
-    velocity.y = -velocity.y * 0.75;
-    velocity.x = velocity.x * 0.85;
+  switch (ObjectType) {
+  case Cube:
+  case Sphere:
+    // bounce the cube/sphere off the floor
+    if (displacement.y < -1.0 + radius) {
+      displacement.y = -1.0 + radius;
+      velocity.y = -velocity.y * 0.75;
+      velocity.x = velocity.x * 0.85;
+    }
+    break;
+  case Rabbit:
+    if (displacement.y < -1.0) {
+      displacement.y = -1.0;
+      velocity.y = -velocity.y * 0.75;
+      velocity.x = velocity.x * 0.85;
+    }
+    break;
   }
 }
-
 
 void load_rabbit() {
 
@@ -525,13 +535,10 @@ void load_rabbit() {
     rabbit_indices.push_back(v3);
   }
 
-
-
   for (int i = 0; i < rabbit_indices.size(); i++) {
     rabbit_points[i] = rabbit_vertices[rabbit_indices[i]];
     rabbit_colors[i] = vertex_colors[0];
   }
-
 }
 
 int main() {
