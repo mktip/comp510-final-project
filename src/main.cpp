@@ -5,12 +5,16 @@
 #include "Angel.h"
 #include <vector>
 #include <cmath>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 typedef vec4 color4;
 typedef vec4 point4;
 
 GLuint vao1;
 GLuint vao2;
+GLuint vao3;
 
 const GLfloat radius = 0.05;
 const int NumVertices = 36; //(6 faces)(2 triangles/face)(3 vertices/triangle)
@@ -30,7 +34,7 @@ struct Vertex {
 #define STACK_COUNT 10
 
 void create_sphere();
-void createSphere(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices, int numSlices, int numStacks, float radius);
+void load_rabbit();
 
 point4 cube_points[NumVertices];
 color4 cube_colors[NumVertices];
@@ -60,13 +64,16 @@ color4 vertex_colors[8] = {
 point4 sphere_points[SECTOR_COUNT * STACK_COUNT * 6];
 color4 sphere_colors[SECTOR_COUNT * STACK_COUNT * 6];
 
+point4 rabbit_points[9840 * 3];
+color4 rabbit_colors[9840 * 3];
+
 // Array of rotation angles (in degrees) for each coordinate axis
 enum { Xaxis = 0, Yaxis = 1, Zaxis = 2, NumAxes = 3 };
 enum { Cube = 0, Sphere = 1, Rabbit = 2, NumObjectTypes };
 enum { Frame = 0, Solid = 1, NumRenderModes = 2 };
 
 int RenderMode = Solid;
-int ObjectType = Sphere;
+int ObjectType = Rabbit;
 int Axis = Yaxis;
 GLfloat Theta[NumAxes] = {0.0, 0.0, 0.0};
 
@@ -119,6 +126,7 @@ void colorcube() {
 
 GLuint cube_buffer;
 GLuint sphere_buffer;
+GLuint rabbit_buffer;
 
 void display_sphere_buffer() {
 
@@ -145,11 +153,9 @@ void display_sphere_buffer() {
 void display_cube_buffer() {
   glBindVertexArray(vao2);
   glBindBuffer(GL_ARRAY_BUFFER, cube_buffer);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(cube_points) + sizeof(cube_colors), NULL,
-               GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(cube_points) + sizeof(cube_colors), NULL, GL_STATIC_DRAW);
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(cube_points), cube_points);
-  glBufferSubData(GL_ARRAY_BUFFER, sizeof(cube_points), sizeof(cube_colors),
-                  cube_colors);
+  glBufferSubData(GL_ARRAY_BUFFER, sizeof(cube_points), sizeof(cube_colors), cube_colors);
 
   // set up vertex arrays
   GLuint vPosition = glGetAttribLocation(program, "vPosition");
@@ -158,9 +164,26 @@ void display_cube_buffer() {
 
   GLuint vColor = glGetAttribLocation(program, "vColor");
   glEnableVertexAttribArray(vColor);
-  glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(sizeof(cube_points)));
+  glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(cube_points)));
 }
+
+void display_rabbit_buffer() {
+  glBindVertexArray(vao3);
+  glBindBuffer(GL_ARRAY_BUFFER, rabbit_buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(rabbit_points) + sizeof(rabbit_colors), NULL, GL_STATIC_DRAW);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(rabbit_points), rabbit_points);
+  glBufferSubData(GL_ARRAY_BUFFER, sizeof(rabbit_points), sizeof(rabbit_colors), rabbit_colors);
+
+  // set up vertex arrays
+  GLuint vPosition = glGetAttribLocation(program, "vPosition");
+  glEnableVertexAttribArray(vPosition);
+  glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
+
+  GLuint vColor = glGetAttribLocation(program, "vColor");
+  glEnableVertexAttribArray(vColor);
+  glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(rabbit_points)));
+}
+
 
 void errorCallback(int error, const char *description) {
   std::cerr << "OpenGL error " << error << ": " << description << std::endl;
@@ -172,23 +195,21 @@ void init() {
   program = InitShader("shaders/vshader.glsl", "shaders/fshader.glsl");
   glUseProgram(program);
 
-  colorcube(); // create the cube in terms of 6 faces each of which is made of
-               // two triangles
+  colorcube(); // create the cube in terms of 6 faces each of which is made of two triangles
   create_sphere();
+  load_rabbit();
 
 
   // Create a vertex array object
   glGenVertexArrays(1, &vao1);
-
+  glGenVertexArrays(1, &vao2);
+  glGenVertexArrays(1, &vao3);
 
   glGenBuffers(1, &sphere_buffer);
-
-  glGenVertexArrays(1, &vao2);
-
-  // Create and initialize a buffer object
   glGenBuffers(1, &cube_buffer);
+  glGenBuffers(1, &rabbit_buffer);
 
-  display_sphere_buffer();
+  display_rabbit_buffer();
 
   // Retrieve transformation uniform variable locations
   ModelView = glGetUniformLocation(program, "ModelView");
@@ -230,21 +251,20 @@ void display(void) {
   // TODO: change the num vertices when switching between sphere and cube
   switch (ObjectType) {
   case Sphere:
-  case Rabbit:
     glDrawArrays(GL_TRIANGLES, 0, SECTOR_COUNT * STACK_COUNT * 6);
-    ;
+    break;
+  case Rabbit:
+    glDrawArrays(GL_TRIANGLES, 0, 9840 * 3);
     break;
   case Cube:
     glDrawArrays(GL_TRIANGLES, 0, NumVertices);
-    ;
     break;
   }
 
   glFlush();
 }
 
-void key_callback(GLFWwindow *window, int key, int scancode, int action,
-                  int mods) {
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
   switch (key) {
   case GLFW_KEY_ESCAPE:
   case GLFW_KEY_Q:
@@ -256,8 +276,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action,
   }
 }
 
-void mouse_button_callback(GLFWwindow *window, int button, int action,
-                           int mods) {
+void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
   if (action == GLFW_PRESS) {
     switch (button) {
     case GLFW_MOUSE_BUTTON_RIGHT:
@@ -271,58 +290,9 @@ void mouse_button_callback(GLFWwindow *window, int button, int action,
 }
 
 
-
-void createSphere(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices, int numSlices, int numStacks, float radius) {
-   const float pi = M_PI;
-   const float twoPi = 2 * pi;
-
-   vertices.clear();
-   indices.clear();
-
-   for (int i = 0; i <= numSlices; i++) {
-      const float theta1 = i * twoPi / numSlices;
-      const float cosTheta1 = cos(theta1);
-      const float sinTheta1 = sin(theta1);
-
-      for (int j = 0; j <= numStacks; j++) {
-         const float phi = j * pi / numStacks;
-         const float cosPhi = cos(phi);
-         const float sinPhi = sin(phi);
-         const float x = radius * sinPhi * cosTheta1;
-         const float y = radius * sinPhi * sinTheta1;
-         const float z = radius * cosPhi;
-         const float nx = x / radius;
-         const float ny = y / radius;
-         const float nz = z / radius;
-
-         Vertex v = { x, y, z, nx, ny, nz };
-         vertices.push_back(v);
-      }
-   }
-
-   for (int i = 0; i < numSlices; i++) {
-      const int index0 = i * (numStacks + 1);
-      const int index1 = index0 + numStacks + 1;
-
-      for (int j = 0; j < numStacks; j++) {
-         indices.push_back(index0 + j);
-         indices.push_back(index1 + j);
-         indices.push_back(index0 + j + 1);
-
-         indices.push_back(index1 + j);
-         indices.push_back(index1 + j + 1);
-         indices.push_back(index0 + j + 1);
-      }
-   }
-}
-
-
 void create_sphere() {
 
   std::vector<vec4> sphere_vertices;
-
-  // clear memory of prev arrays
-  // std::vector<vec4>().swap(sphere_vertices);
 
   float x, y, z, xz; // vertex position
 
@@ -386,8 +356,13 @@ void create_sphere() {
 }
 
 GLfloat dt = 0.01;
+GLfloat zero = 0.01;
 
 void update(void) {
+
+  if (velocity.y < zero && velocity.x < zero) {
+    return;
+  }
 
   // Rotate the cube by 1 degree
   // Theta[Zaxis] = (GLfloat) (((int) Theta[Zaxis] + 359) % 360);
@@ -407,8 +382,10 @@ void update(void) {
     display_cube_buffer();
     break;
   case Sphere:
-  case Rabbit:
     display_sphere_buffer();
+    break;
+  case Rabbit:
+    display_rabbit_buffer();
     break;
   }
 
@@ -424,10 +401,57 @@ void update(void) {
   if (displacement.y < -1.0 + radius) {
     displacement.y = -1.0 + radius;
     velocity.y = -velocity.y * 0.75;
+    velocity.x = velocity.x * 0.85;
   }
 }
 
+
+void load_rabbit() {
+
+  std::ifstream file("models/bunny.off");
+  std::string line;
+  std::getline(file, line);
+  std::getline(file, line);
+
+  std::istringstream iss(line);
+  int num_vertices, num_faces, num_edges;
+  iss >> num_vertices >> num_faces >> num_edges;
+  std::vector<vec4> rabbit_vertices;
+  for (int i = 0; i < num_vertices; i++) {
+    std::getline(file, line);
+    std::istringstream iss(line);
+    float x, y, z;
+    iss >> y >> x >> y;
+    x *= -1;
+    x *= radius;
+    y *= radius;
+    z *= radius;
+
+    rabbit_vertices.push_back(vec4(x / 25, y / 25, z / 25 , 1.0));
+  }
+
+  std::vector<int> rabbit_indices;
+  for (int i = 0; i < num_faces; i++) {
+    std::getline(file, line);
+    std::istringstream iss(line);
+    int num_vertices, v1, v2, v3;
+    iss >> num_vertices >> v1 >> v2 >> v3;
+    rabbit_indices.push_back(v1);
+    rabbit_indices.push_back(v2);
+    rabbit_indices.push_back(v3);
+  }
+
+
+
+  for (int i = 0; i < rabbit_indices.size(); i++) {
+    rabbit_points[i] = rabbit_vertices[rabbit_indices[i]];
+    rabbit_colors[i] = vertex_colors[0];
+  }
+
+}
+
 int main() {
+
   if (!glfwInit())
     exit(EXIT_FAILURE);
 
