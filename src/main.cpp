@@ -469,6 +469,15 @@ void update(void) {
   }
 
   if (velocity.y < zero && velocity.x < zero) {
+    switch (ObjectType) {
+    case Cube:
+    case Sphere:
+      displacement.y = -1.0 + radius;
+      break;
+    case Rabbit:
+      displacement.y = -1.0;
+      break;
+    }
     return;
   }
 
