@@ -9,6 +9,12 @@
 #include <fstream>
 #include <sstream>
 
+const int xpix = 1280;
+const int ypix = 720;
+
+#define SECTOR_COUNT 10
+#define STACK_COUNT 10
+
 typedef vec4 color4;
 typedef vec4 point4;
 
@@ -17,9 +23,9 @@ GLuint vao2;
 GLuint vao3;
 
 const GLfloat radius = 0.05;
-const int NumVertices = 36; //(6 faces)(2 triangles/face)(3 vertices/triangle)
-const int xpix = 1280;
-const int ypix = 720;
+const int NumCubeVertices = 36;
+const int NumSphereVertices = SECTOR_COUNT * STACK_COUNT * 6;
+const int NumRabbitVertices = 9840 * 3;
 
 const GLfloat screen_ratio = (GLfloat)xpix / (GLfloat)ypix;
 
@@ -30,14 +36,12 @@ struct Vertex {
    float nx, ny, nz;
 };
 
-#define SECTOR_COUNT 10
-#define STACK_COUNT 10
 
 void create_sphere();
 void load_rabbit();
 
-point4 cube_points[NumVertices];
-color4 cube_colors[NumVertices];
+point4 cube_points[NumCubeVertices];
+color4 cube_colors[NumCubeVertices];
 
 // Vertices of a unit cube centered at origin, sides aligned with axes
 point4 vertices[8] = {point4(-radius, -radius, radius, 1.0),
@@ -61,19 +65,21 @@ color4 vertex_colors[8] = {
     color4(0.0, 1.0, 1.0, 1.0)  // cyan
 };
 
-point4 sphere_points[SECTOR_COUNT * STACK_COUNT * 6];
-color4 sphere_colors[SECTOR_COUNT * STACK_COUNT * 6];
+point4 sphere_points[NumSphereVertices];
+color4 sphere_colors[NumSphereVertices];
 
-point4 rabbit_points[9840 * 3];
-color4 rabbit_colors[9840 * 3];
+point4 rabbit_points[NumRabbitVertices];
+color4 rabbit_colors[NumRabbitVertices];
 
 // Array of rotation angles (in degrees) for each coordinate axis
 enum { Xaxis = 0, Yaxis = 1, Zaxis = 2, NumAxes = 3 };
-enum { Cube = 0, Sphere = 1, Rabbit = 2, NumObjectTypes };
+enum { Cube = 0, Sphere = 1, Rabbit = 2, NumObjectTypes = 3 };
+enum { Color1 = 0, Color2 = 1, Color3 = 2, NumColors = 3 };
 enum { Frame = 0, Solid = 1, NumRenderModes = 2 };
 
 int RenderMode = Solid;
 int ObjectType = Rabbit;
+int Color = Color1;
 int Axis = Yaxis;
 GLfloat Theta[NumAxes] = {0.0, 0.0, 0.0};
 
@@ -136,6 +142,26 @@ void display_sphere_buffer() {
                NULL, GL_STATIC_DRAW);
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(sphere_points),
                   sphere_points);
+
+
+  switch (Color) {
+    case Color1:
+      for (int i = 0; i < NumSphereVertices; i++) {
+        sphere_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
+      }
+      break;
+    case Color2:
+      for (int i = 0; i < NumSphereVertices; i++) {
+        sphere_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
+      }
+      break;
+    case Color3:
+      for (int i = 0; i < NumSphereVertices; i++) {
+        sphere_colors[i] = vertex_colors[i % 8];
+      }
+      break;
+  }
+
   glBufferSubData(GL_ARRAY_BUFFER, sizeof(sphere_points), sizeof(sphere_colors),
                   sphere_colors);
 
@@ -155,6 +181,25 @@ void display_cube_buffer() {
   glBindBuffer(GL_ARRAY_BUFFER, cube_buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(cube_points) + sizeof(cube_colors), NULL, GL_STATIC_DRAW);
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(cube_points), cube_points);
+
+  switch (Color) {
+    case Color1:
+      for (int i = 0; i <  NumCubeVertices; i++) {
+        cube_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
+      }
+      break;
+    case Color2:
+      for (int i = 0; i <  NumCubeVertices; i++) {
+        cube_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
+      }
+      break;
+    case Color3:
+      for (int i = 0; i < NumCubeVertices; i++) {
+        cube_colors[i] = vertex_colors[i % 8];
+      }
+      break;
+  }
+
   glBufferSubData(GL_ARRAY_BUFFER, sizeof(cube_points), sizeof(cube_colors), cube_colors);
 
   // set up vertex arrays
@@ -172,6 +217,26 @@ void display_rabbit_buffer() {
   glBindBuffer(GL_ARRAY_BUFFER, rabbit_buffer);
   glBufferData(GL_ARRAY_BUFFER, sizeof(rabbit_points) + sizeof(rabbit_colors), NULL, GL_STATIC_DRAW);
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(rabbit_points), rabbit_points);
+
+
+  switch (Color) {
+    case Color1:
+      for (int i = 0; i < NumRabbitVertices; i++) {
+        rabbit_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
+      }
+      break;
+    case Color2:
+      for (int i = 0; i < NumRabbitVertices; i++) {
+        rabbit_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
+      }
+      break;
+    case Color3:
+      for (int i = 0; i < NumRabbitVertices; i++) {
+        rabbit_colors[i] = vertex_colors[i % 8];
+      }
+      break;
+  }
+
   glBufferSubData(GL_ARRAY_BUFFER, sizeof(rabbit_points), sizeof(rabbit_colors), rabbit_colors);
 
   // set up vertex arrays
@@ -251,13 +316,13 @@ void display(void) {
   // TODO: change the num vertices when switching between sphere and cube
   switch (ObjectType) {
   case Sphere:
-    glDrawArrays(GL_TRIANGLES, 0, SECTOR_COUNT * STACK_COUNT * 6);
+    glDrawArrays(GL_TRIANGLES, 0, NumSphereVertices);
     break;
   case Rabbit:
-    glDrawArrays(GL_TRIANGLES, 0, 9840 * 3);
+    glDrawArrays(GL_TRIANGLES, 0, NumRabbitVertices);
     break;
   case Cube:
-    glDrawArrays(GL_TRIANGLES, 0, NumVertices);
+    glDrawArrays(GL_TRIANGLES, 0, NumCubeVertices);
     break;
   }
 
@@ -273,6 +338,19 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
   case GLFW_KEY_I:
     displacement = start_displacement;
     velocity = start_velocity;
+    break;
+  case GLFW_KEY_C:
+    // toggle the color (between green, red, and our custom colors)
+    Color = (Color + 1) % NumColors;
+    break;
+  case GLFW_KEY_H:
+    std::cout << "Help:" << std::endl;
+    std::cout << "Press 'q' or 'esc' to quit" << std::endl;
+    std::cout << "Press 'i' to reset the object" << std::endl;
+    std::cout << "Press 'c' to toggle the color" << std::endl;
+    std::cout << "Click the left mouse button to toggle the render mode (solid, wireframe)" << std::endl;
+    std::cout << "Click the right mouse button to toggle the object type (rabbit, sphere, cube)" << std::endl;
+    std::cout << "Press 'h' to display this help message" << std::endl;
   }
 }
 
@@ -360,9 +438,6 @@ GLfloat zero = 0.01;
 
 void update(void) {
 
-  if (velocity.y < zero && velocity.x < zero) {
-    return;
-  }
 
   // Rotate the cube by 1 degree
   // Theta[Zaxis] = (GLfloat) (((int) Theta[Zaxis] + 359) % 360);
@@ -387,6 +462,10 @@ void update(void) {
   case Rabbit:
     display_rabbit_buffer();
     break;
+  }
+
+  if (velocity.y < zero && velocity.x < zero) {
+    return;
   }
 
   // compute the effect of gravity on the cube
@@ -423,9 +502,9 @@ void load_rabbit() {
     float x, y, z;
     iss >> y >> x >> y;
     x *= -1;
-    x *= radius;
-    y *= radius;
-    z *= radius;
+    // x *= radius;
+    // y *= radius;
+    // z *= radius;
 
     rabbit_vertices.push_back(vec4(x / 25, y / 25, z / 25 , 1.0));
   }
