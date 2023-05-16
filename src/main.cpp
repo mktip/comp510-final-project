@@ -447,7 +447,7 @@ void update(void) {
 // wireframes to be visible
 void load_rabbit() {
 
-  std::ifstream file("models/bunny.off");
+  std::ifstream file("assets/bunny.off");
   std::string line;
   std::getline(file, line);
   std::getline(file, line);
