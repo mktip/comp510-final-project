@@ -15,11 +15,11 @@ const int ypix = 768;
 const GLfloat screen_ratio = (GLfloat)xpix / (GLfloat)ypix;
 
 // Sphere constants
-#define SECTOR_COUNT 15
-#define STACK_COUNT 15
+#define SECTOR_COUNT 8
+#define STACK_COUNT 8
 
 // Object size modifier
-const GLfloat radius = 0.05;
+const GLfloat radius = 0.1;
 
 // The number of vertices in each object
 const int NumSphereVertices = SECTOR_COUNT * STACK_COUNT * 6;
@@ -30,30 +30,8 @@ typedef vec4 point4;
 // point arrays for the objects
 
 point4 sphere_points[NumSphereVertices];
-color4 sphere_colors[NumSphereVertices];
 vec3 sphere_normals[NumSphereVertices];
 
-// Vertices of a unit cube centered at origin, sides aligned with axes
-point4 vertices[8] = {point4(-radius, -radius, radius, 1.0),
-                      point4(-radius, radius, radius, 1.0),
-                      point4(radius, radius, radius, 1.0),
-                      point4(radius, -radius, radius, 1.0),
-                      point4(-radius, -radius, -radius, 1.0),
-                      point4(-radius, radius, -radius, 1.0),
-                      point4(radius, radius, -radius, 1.0),
-                      point4(radius, -radius, -radius, 1.0)};
-
-// RGBA olors
-color4 vertex_colors[8] = {
-    color4(0.0, 0.0, 0.0, 1.0), // black
-    color4(1.0, 0.0, 0.0, 1.0), // red
-    color4(1.0, 1.0, 0.0, 1.0), // yellow
-    color4(0.0, 1.0, 0.0, 1.0), // green
-    color4(0.0, 0.0, 1.0, 1.0), // blue
-    color4(1.0, 0.0, 1.0, 1.0), // magenta
-    color4(1.0, 1.0, 1.0, 1.0), // white
-    color4(0.0, 1.0, 1.0, 1.0)  // cyan
-};
 
 // Array of rotation angles (in degrees) for each coordinate axis
 enum { Xaxis = 0, Yaxis = 1, Zaxis = 2, NumAxes = 3 };
@@ -62,9 +40,8 @@ enum { Color1 = 0, Color2 = 1, Color3 = 2, NumColors = 3 };
 enum { Frame = 0, Solid = 1, NumRenderModes = 2 };
 
 int RenderMode = Solid;
-int ObjectType = Sphere;
-int Color = Color1;
-int Axis = Yaxis;
+
+
 
 GLfloat Theta[NumAxes] = {0.0, 0.0, 0.0};
 
@@ -93,6 +70,8 @@ void errorCallback(int error, const char *description) {
 }
 
 mat4 projection;
+point4 light_position;
+vec3 start_displacement(-0.5, 0.5, -2);
 void init() {
 
   // Load shaders and use the resulting shader program
@@ -126,7 +105,7 @@ void init() {
                         BUFFER_OFFSET(sizeof(sphere_points)));
 
   // Initialize shader lighting parameters
-  point4 light_position(0.0, 0.0, 2.0, 1.0);
+  light_position=vec4(0, 0, -2,1);
   color4 light_ambient(0.2, 0.2, 0.2, 1.0);
   color4 light_diffuse(1.0, 1.0, 1.0, 1.0);
   color4 light_specular(1.0, 1.0, 1.0, 1.0);
@@ -134,7 +113,7 @@ void init() {
   color4 material_ambient(1.0, 0.0, 1.0, 1.0);
   color4 material_diffuse(1.0, 0.8, 0.0, 1.0);
   color4 material_specular(1.0, 0.0, 1.0, 1.0);
-  float material_shininess = 15.0;
+  float material_shininess = 5.0;
 
   color4 ambient_product = light_ambient * material_ambient;
   color4 diffuse_product = light_diffuse * material_diffuse;
@@ -163,7 +142,9 @@ void init() {
   glUniformMatrix4fv(Projection, 1, GL_TRUE, projection);
 
   glEnable(GL_DEPTH_TEST);
-  glClearColor(1.0, 1.0, 1.0, 1.0);
+  glEnable(GL_CULL_FACE);
+  glClearColor(0.2, 0.2, 0.2, 1.0);
+
 }
 
 //---------------------------------------------------------------------
@@ -172,7 +153,6 @@ void init() {
 //
 //
 
-vec3 start_displacement(-0.5, 0.5, -2);
 vec3 displacement(start_displacement);
 vec3 start_velocity(0.5, 0.0, 0.0);
 vec3 velocity(start_velocity);
@@ -184,11 +164,11 @@ void display(void) {
   //  Generate the model-view matrix
 
   mat4 model_view =
-      (Translate(displacement) * Scale(4.0, 4.0, 4.0) * RotateX(Theta[Xaxis]) *
+      (Translate(displacement) * Scale(1.0, 1.0, 1.0) * RotateX(Theta[Xaxis]) *
        RotateY(Theta[Yaxis]) *
-       RotateZ(Theta[Zaxis])); // Scale(), Translate(), RotateX(), RotateY(),
-                               // RotateZ(): user-defined functions in mat.h
-
+       RotateZ(Theta[Zaxis]));
+  glUniform4fv(glGetUniformLocation(program, "LightPosition"), 1,
+                 light_position);
   glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
   glDrawArrays(GL_TRIANGLES, 0, NumSphereVertices);
 
@@ -213,7 +193,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action,
     break;
   case GLFW_KEY_C:
     // toggle the color (between green, red, and our custom colors)
-    Color = (Color + 1) % NumColors;
+
     break;
   case GLFW_KEY_H:
     std::cout << "Help:" << std::endl;
@@ -235,7 +215,6 @@ void mouse_button_callback(GLFWwindow *window, int button, int action,
   if (action == GLFW_PRESS) {
     switch (button) {
     case GLFW_MOUSE_BUTTON_RIGHT:
-      ObjectType = (ObjectType + 1) % NumObjectTypes;
       break;
     case GLFW_MOUSE_BUTTON_LEFT:
       RenderMode = (RenderMode + 1) % NumRenderModes;
@@ -267,7 +246,7 @@ void create_sphere() {
     // add (sectorCount+1) vertices per stack
     // the first and last vertices have same position and normal, but different
     // tex coords
-    for (int j = 0; j <= SECTOR_COUNT; ++j) {
+    for (int j = SECTOR_COUNT; j >= 0; --j) {
       sectorAngle = j * sectorStep; // starting from 0 to 2pi
 
       // vertex position (x, y, z)
@@ -303,7 +282,6 @@ void create_sphere() {
 
   for (int i = 0; i < sphere_indices.size(); i++) {
     sphere_points[i] = sphere_vertices[sphere_indices[i]];
-    sphere_colors[i] = vertex_colors[i % 8];
     sphere_normals[i] = vec3(sphere_vertices[sphere_indices[i]][0],
                              sphere_vertices[sphere_indices[i]][1],
                              sphere_vertices[sphere_indices[i]][2]);
@@ -315,11 +293,7 @@ GLfloat zero = 0.01;
 
 void update(void) {
 
-  // Rotate the cube by 1 degree
-  // Theta[Zaxis] = (GLfloat) (((int) Theta[Zaxis] + 359) % 360);
-
   switch (RenderMode) {
-  // TODO: maybe recheck if it can be done only for the front
   case Solid:
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     break;
@@ -330,7 +304,7 @@ void update(void) {
 
   // compute the effect of gravity on the cube
   displacement.y =
-      displacement.y + velocity.y * dt + 0.5 * y_acceleration * dt * dt;
+      displacement.y + velocity.y * dt + 0.5f * y_acceleration * dt * dt;
   displacement.x = displacement.x + velocity.x * dt;
 
   // keep the cube moving horizontally
