@@ -10,36 +10,28 @@
 #include <vector>
 
 // Window size in pixels
-const int xpix = 1280;
-const int ypix = 720;
+const int xpix = 1024;
+const int ypix = 768;
 const GLfloat screen_ratio = (GLfloat)xpix / (GLfloat)ypix;
 
 // Sphere constants
-#define SECTOR_COUNT 10
-#define STACK_COUNT 10
+#define SECTOR_COUNT 15
+#define STACK_COUNT 15
 
 // Object size modifier
 const GLfloat radius = 0.05;
 
 // The number of vertices in each object
-const int NumCubeVertices = 36;
 const int NumSphereVertices = SECTOR_COUNT * STACK_COUNT * 6;
-const int NumRabbitVertices = 9840 * 3;
-
 
 typedef vec4 color4;
 typedef vec4 point4;
 
-
 // point arrays for the objects
-point4 cube_points[NumCubeVertices];
-color4 cube_colors[NumCubeVertices];
 
 point4 sphere_points[NumSphereVertices];
 color4 sphere_colors[NumSphereVertices];
-
-point4 rabbit_points[NumRabbitVertices];
-color4 rabbit_colors[NumRabbitVertices];
+vec3 sphere_normals[NumSphereVertices];
 
 // Vertices of a unit cube centered at origin, sides aligned with axes
 point4 vertices[8] = {point4(-radius, -radius, radius, 1.0),
@@ -63,10 +55,9 @@ color4 vertex_colors[8] = {
     color4(0.0, 1.0, 1.0, 1.0)  // cyan
 };
 
-
 // Array of rotation angles (in degrees) for each coordinate axis
 enum { Xaxis = 0, Yaxis = 1, Zaxis = 2, NumAxes = 3 };
-enum { Cube = 0, Sphere = 1, Rabbit = 2, NumObjectTypes = 3 };
+enum { Sphere = 0, NumObjectTypes = 1 };
 enum { Color1 = 0, Color2 = 1, Color3 = 2, NumColors = 3 };
 enum { Frame = 0, Solid = 1, NumRenderModes = 2 };
 
@@ -80,136 +71,95 @@ GLfloat Theta[NumAxes] = {0.0, 0.0, 0.0};
 // Model-view and projection matrices uniform location
 GLuint ModelView, Projection;
 
-//----------------------------------------------------------------------------
-
-// quad generates two triangles for each face and assigns colors to the vertices
-int Index = 0;
-
-void quad(int a, int b, int c, int d) {
-  cube_colors[Index] = vertex_colors[a];
-  cube_points[Index] = vertices[a];
-  Index++;
-  cube_colors[Index] = vertex_colors[b];
-  cube_points[Index] = vertices[b];
-  Index++;
-  cube_colors[Index] = vertex_colors[c];
-  cube_points[Index] = vertices[c];
-  Index++;
-  cube_colors[Index] = vertex_colors[a];
-  cube_points[Index] = vertices[a];
-  Index++;
-  cube_colors[Index] = vertex_colors[c];
-  cube_points[Index] = vertices[c];
-  Index++;
-  cube_colors[Index] = vertex_colors[d];
-  cube_points[Index] = vertices[d];
-  Index++;
-}
-
-//----------------------------------------------------------------------------
-
-// generate 12 triangles: 36 vertices and 36 colors
-
-void colorcube() {
-  quad(1, 0, 3, 2);
-  quad(2, 3, 7, 6);
-  quad(3, 0, 4, 7);
-  quad(6, 5, 1, 2);
-  quad(4, 5, 6, 7);
-  quad(5, 4, 0, 1);
-}
-
 //---------------------------------------------------------------------
 //
 // init
 //
 
 void create_sphere();
-void load_rabbit();
 
-GLuint vao1;
-GLuint vao2;
-GLuint vao3;
-
+GLuint vao;
 GLuint program = 0;
-
-GLuint cube_buffer;
 GLuint sphere_buffer;
-GLuint rabbit_buffer;
 
-// This function readies the given object for display with the given points and colors
-void display_object(GLuint object_buffer, point4* object_points, color4* object_colors, int num_vertices, GLuint vao) {
-  glBindVertexArray(vao);
-  glBindBuffer(GL_ARRAY_BUFFER, object_buffer);
-  glBufferData(GL_ARRAY_BUFFER, num_vertices * sizeof(point4) + num_vertices * sizeof(color4), NULL, GL_STATIC_DRAW);
-  glBufferSubData(GL_ARRAY_BUFFER, 0, num_vertices * sizeof(point4), object_points);
-
-
-  switch (Color) {
-  case Color1:
-    for (int i = 0; i < num_vertices; i++) {
-      object_colors[i] = color4(1.0, 0.0, 0.0, 1.0);
-    }
-    break;
-  case Color2:
-    for (int i = 0; i < num_vertices; i++) {
-      object_colors[i] = color4(0.0, 1.0, 0.0, 1.0);
-    }
-    break;
-  case Color3:
-    for (int i = 0; i < num_vertices; i++) {
-      object_colors[i] = vertex_colors[i % 8];
-    }
-    break;
-  }
-
-  glBufferSubData(GL_ARRAY_BUFFER, num_vertices * sizeof(point4), num_vertices * sizeof(color4),
-                  object_colors);
-
-  // set up vertex arrays
-  GLuint vPosition = glGetAttribLocation(program, "vPosition");
-  glEnableVertexAttribArray(vPosition);
-  glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
-
-  GLuint vColor = glGetAttribLocation(program, "vColor");
-  glEnableVertexAttribArray(vColor);
-  glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0,
-                        BUFFER_OFFSET(sizeof(point4) * num_vertices));
-}
+// This function readies the given object for display with the given points and
+// colors
+void display_object(GLuint object_buffer, point4 *object_points,
+                    color4 *object_colors, int num_vertices, GLuint vao) {}
 
 // Have an error callback to make sure to catch any errors
 void errorCallback(int error, const char *description) {
   std::cerr << "OpenGL error " << error << ": " << description << std::endl;
 }
 
+mat4 projection;
 void init() {
 
   // Load shaders and use the resulting shader program
+
+  // Create/load the points for each object
+  create_sphere();
+
+  // Create a vertex array object
+  glGenVertexArrays(1, &vao);
+  glGenBuffers(1, &sphere_buffer);
+
+  glBindVertexArray(vao);
+  glBindBuffer(GL_ARRAY_BUFFER, sphere_buffer);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_points) + sizeof(sphere_normals),
+               NULL, GL_STATIC_DRAW);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(sphere_points), sphere_points);
+  glBufferSubData(GL_ARRAY_BUFFER, sizeof(sphere_points),
+                  sizeof(sphere_normals), sphere_normals);
+
   program = InitShader("shaders/vshader.glsl", "shaders/fshader.glsl");
   glUseProgram(program);
 
-  // Create/load the points for each object
-  colorcube();
-  create_sphere();
-  load_rabbit();
+  // set up vertex arrays
+  GLuint vPosition = glGetAttribLocation(program, "vPosition");
+  glEnableVertexAttribArray(vPosition);
+  glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
 
-  // Create a vertex array object
-  glGenVertexArrays(1, &vao1);
-  glGenVertexArrays(1, &vao2);
-  glGenVertexArrays(1, &vao3);
+  GLuint vNormal = glGetAttribLocation(program, "vNormal");
+  glEnableVertexAttribArray(vNormal);
+  glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0,
+                        BUFFER_OFFSET(sizeof(sphere_points)));
 
-  glGenBuffers(1, &sphere_buffer);
-  glGenBuffers(1, &cube_buffer);
-  glGenBuffers(1, &rabbit_buffer);
+  // Initialize shader lighting parameters
+  point4 light_position(0.0, 0.0, 2.0, 1.0);
+  color4 light_ambient(0.2, 0.2, 0.2, 1.0);
+  color4 light_diffuse(1.0, 1.0, 1.0, 1.0);
+  color4 light_specular(1.0, 1.0, 1.0, 1.0);
+
+  color4 material_ambient(1.0, 0.0, 1.0, 1.0);
+  color4 material_diffuse(1.0, 0.8, 0.0, 1.0);
+  color4 material_specular(1.0, 0.0, 1.0, 1.0);
+  float material_shininess = 15.0;
+
+  color4 ambient_product = light_ambient * material_ambient;
+  color4 diffuse_product = light_diffuse * material_diffuse;
+  color4 specular_product = light_specular * material_specular;
+
+  glUniform4fv(glGetUniformLocation(program, "AmbientProduct"), 1,
+               ambient_product);
+  glUniform4fv(glGetUniformLocation(program, "DiffuseProduct"), 1,
+               diffuse_product);
+  glUniform4fv(glGetUniformLocation(program, "SpecularProduct"), 1,
+               specular_product);
+
+  glUniform4fv(glGetUniformLocation(program, "LightPosition"), 1,
+               light_position);
+
+  glUniform1i(glGetUniformLocation(program, "is_phong"), 0);
+
+  glUniform1f(glGetUniformLocation(program, "Shininess"), material_shininess);
 
   // Retrieve transformation uniform variable locations
   ModelView = glGetUniformLocation(program, "ModelView");
   Projection = glGetUniformLocation(program, "Projection");
 
   // Set projection matrix
-  mat4 projection;
-  projection = Ortho(-1.0 * (screen_ratio), 1.0 * (screen_ratio), -1.0, 1.0,
-                     -1.0, 1.0); // Ortho(): user-defined function in mat.h
+  projection = Perspective(29, screen_ratio, 1, 3);
   glUniformMatrix4fv(Projection, 1, GL_TRUE, projection);
 
   glEnable(GL_DEPTH_TEST);
@@ -220,10 +170,11 @@ void init() {
 //
 // display
 //
+//
 
-vec3 start_displacement(-1.0 * screen_ratio + radius, 1.0 - radius, 0.0);
+vec3 start_displacement(-0.5, 0.5, -2);
 vec3 displacement(start_displacement);
-vec3 start_velocity(1.0, 0.0, 0.0);
+vec3 start_velocity(0.5, 0.0, 0.0);
 vec3 velocity(start_velocity);
 const GLfloat y_acceleration = -9.81;
 
@@ -233,24 +184,13 @@ void display(void) {
   //  Generate the model-view matrix
 
   mat4 model_view =
-      (Translate(displacement) * Scale(1.0, 1.0, 1.0) * RotateX(Theta[Xaxis]) *
+      (Translate(displacement) * Scale(4.0, 4.0, 4.0) * RotateX(Theta[Xaxis]) *
        RotateY(Theta[Yaxis]) *
        RotateZ(Theta[Zaxis])); // Scale(), Translate(), RotateX(), RotateY(),
                                // RotateZ(): user-defined functions in mat.h
 
   glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
-  // TODO: change the num vertices when switching between sphere and cube
-  switch (ObjectType) {
-  case Sphere:
-    glDrawArrays(GL_TRIANGLES, 0, NumSphereVertices);
-    break;
-  case Rabbit:
-    glDrawArrays(GL_TRIANGLES, 0, NumRabbitVertices);
-    break;
-  case Cube:
-    glDrawArrays(GL_TRIANGLES, 0, NumCubeVertices);
-    break;
-  }
+  glDrawArrays(GL_TRIANGLES, 0, NumSphereVertices);
 
   glFlush();
 }
@@ -284,7 +224,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action,
                  "(solid, wireframe)"
               << std::endl;
     std::cout << "Click the right mouse button to toggle the object type "
-                 "(rabbit, sphere, cube)"
+                 "(sphere)"
               << std::endl;
     std::cout << "Press 'h' to display this help message" << std::endl;
   }
@@ -364,6 +304,9 @@ void create_sphere() {
   for (int i = 0; i < sphere_indices.size(); i++) {
     sphere_points[i] = sphere_vertices[sphere_indices[i]];
     sphere_colors[i] = vertex_colors[i % 8];
+    sphere_normals[i] = vec3(sphere_vertices[sphere_indices[i]][0],
+                             sphere_vertices[sphere_indices[i]][1],
+                             sphere_vertices[sphere_indices[i]][2]);
   }
 }
 
@@ -385,33 +328,6 @@ void update(void) {
     break;
   }
 
-  switch (ObjectType) {
-  case Cube:
-    display_object(cube_buffer, cube_points, cube_colors, NumCubeVertices, vao1);
-    break;
-  case Sphere:
-    display_object(sphere_buffer, sphere_points, sphere_colors, NumSphereVertices, vao2);
-    break;
-  case Rabbit:
-    display_object(rabbit_buffer, rabbit_points, rabbit_colors, NumRabbitVertices, vao3);
-    break;
-  }
-
-  // if movement is stopped, don't continue moving, and make sure the object is
-  // touching the floor
-  if (velocity.y < zero && velocity.x < zero) {
-    switch (ObjectType) {
-    case Cube:
-    case Sphere:
-      displacement.y = -1.0 + radius;
-      break;
-    case Rabbit:
-      displacement.y = -1.0;
-      break;
-    }
-    return;
-  }
-
   // compute the effect of gravity on the cube
   displacement.y =
       displacement.y + velocity.y * dt + 0.5 * y_acceleration * dt * dt;
@@ -420,69 +336,15 @@ void update(void) {
   // keep the cube moving horizontally
   velocity.y = velocity.y + y_acceleration * dt;
 
-  // bounce the object off the floor (while reducing its speed overall on each bounce)
-  switch (ObjectType) {
-  case Cube:
-  case Sphere:
-    if (displacement.y < -1.0 + radius) {
-      displacement.y = -1.0 + radius;
-      velocity.y = -velocity.y * 0.75;
-      velocity.x = velocity.x * 0.85;
-    }
-    break;
-  case Rabbit:
-    if (displacement.y < -1.0) {
-      displacement.y = -1.0;
-      velocity.y = -velocity.y * 0.75;
-      velocity.x = velocity.x * 0.85;
-    }
-    break;
-  }
-}
+  // bounce the object off the floor (while reducing its speed overall on each
+  // bounce)
 
-// load_rabbit opens the rabbit .off model and parses it into a list of vertices
-// then a list of indices, then for each index, it adds the corresponding
-// vertex to the rabbit_points array
-// The size is scaled down to fit into the screen, while still allowing tthe
-// wireframes to be visible
-void load_rabbit() {
-
-  std::ifstream file("assets/bunny.off");
-  std::string line;
-  std::getline(file, line);
-  std::getline(file, line);
-
-  std::istringstream iss(line);
-  int num_vertices, num_faces, num_edges;
-  iss >> num_vertices >> num_faces >> num_edges;
-  std::vector<vec4> rabbit_vertices;
-  for (int i = 0; i < num_vertices; i++) {
-    std::getline(file, line);
-    std::istringstream iss(line);
-    float x, y, z;
-    iss >> y >> x >> y;
-    x *= -1;
-    x *= 0.5 * radius;
-    y *= 0.5 * radius;
-    z *= 0.5 * radius;
-
-    rabbit_vertices.push_back(vec4(x, y, z, 1.0));
-  }
-
-  std::vector<int> rabbit_indices;
-  for (int i = 0; i < num_faces; i++) {
-    std::getline(file, line);
-    std::istringstream iss(line);
-    int num_vertices, v1, v2, v3;
-    iss >> num_vertices >> v1 >> v2 >> v3;
-    rabbit_indices.push_back(v1);
-    rabbit_indices.push_back(v2);
-    rabbit_indices.push_back(v3);
-  }
-
-  for (int i = 0; i < rabbit_indices.size(); i++) {
-    rabbit_points[i] = rabbit_vertices[rabbit_indices[i]];
-    rabbit_colors[i] = vertex_colors[0];
+  if (displacement.y <
+      (std::tan(29.0 / 2 * DegreesToRadians) * start_displacement.z + radius)) {
+    displacement.y =
+        (std::tan(29.0 / 2 * DegreesToRadians) * start_displacement.z + radius);
+    velocity.y = -velocity.y * 0.75;
+    velocity.x = velocity.x * 0.85;
   }
 }
 
@@ -497,7 +359,7 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
   glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
-  GLFWwindow *window = glfwCreateWindow(xpix, ypix, "Spin Cube", NULL, NULL);
+  GLFWwindow *window = glfwCreateWindow(xpix, ypix, "Homework 3", NULL, NULL);
   glfwMakeContextCurrent(window);
 
   if (!window) {
