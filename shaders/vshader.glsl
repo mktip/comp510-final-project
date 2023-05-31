@@ -1,7 +1,8 @@
 #version 410
 in  vec4 vPosition;
 in  vec3 vNormal;
-in  vec2 vTexCoord;
+in  vec2 vTexCoord2D;
+in  float vTexCoord1D;
 
 
 uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
@@ -13,15 +14,18 @@ uniform bool ShadingType;
 uniform int RenderMode;
 
 out vec4 color;
-out  vec3 fN;
-out  vec3 fV;
-out  vec3 fL;
-out vec2 texCoord;
+out vec3 fN;
+out vec3 fV;
+out vec3 fL;
+out vec2 texCoord2D;
+out float texCoord1D;
 
 void main()
 {
     if (RenderMode==2){
-      texCoord = vTexCoord;
+      texCoord2D = vTexCoord2D;
+      texCoord1D = vTexCoord1D;
+
     } else {
       // Transform vertex position into camera (eye) coordinates
       vec3 pos = (ModelView * vPosition).xyz;

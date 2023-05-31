@@ -4,20 +4,27 @@ in  vec3 fN;
 in  vec3 fL;
 in  vec3 fV;
 in vec4 color;
-in vec2 texCoord;
+in vec2 texCoord2D;
+in float texCoord1D;
 
 uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
 uniform float Shininess;
 uniform bool ShadingType;
 uniform int RenderMode;
-uniform sampler2D tex;
+uniform bool textureType;
+uniform sampler2D tex2D;
+uniform sampler1D tex1D;
 
 out vec4 fragColor;
 
 void main()
 {
     if(RenderMode==2){
-        fragColor = texture(tex, texCoord);
+        if(textureType){
+            fragColor = texture(tex2D, texCoord2D);
+        }else{
+            fragColor = texture(tex1D, texCoord1D);
+        }
     }else{
         if (ShadingType) {
             vec3 N = normalize(fN);
