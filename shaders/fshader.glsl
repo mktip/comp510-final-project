@@ -3,42 +3,47 @@
 in  vec3 fN;
 in  vec3 fL;
 in  vec3 fV;
-
 in vec4 color;
-out vec4 fragColor;
+in vec2 texCoord;
 
 uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
 uniform float Shininess;
-uniform bool is_phong;
+uniform bool ShadingType;
+uniform int RenderMode;
+uniform sampler2D tex;
 
-out vec4 fcolor;
+out vec4 fragColor;
 
 void main()
 {
+    if(RenderMode==2){
+        fragColor = texture(tex, texCoord);
+    }else{
+        if (ShadingType) {
+            vec3 N = normalize(fN);
+            vec3 V = normalize(fV);
+            vec3 L = normalize(fL);
 
-    if (is_phong) {
-        vec3 N = normalize(fN);
-        vec3 V = normalize(fV);
-        vec3 L = normalize(fL);
+            vec3 H = normalize( L + V );
 
-        vec3 H = normalize( L + V );
+            vec4 ambient = AmbientProduct;
 
-        vec4 ambient = AmbientProduct;
+            float Kd = max(dot(L, N), 0.0);
+            vec4 diffuse = Kd*DiffuseProduct;
 
-        float Kd = max(dot(L, N), 0.0);
-        vec4 diffuse = Kd*DiffuseProduct;
+            float Ks = pow(max(dot(N, H), 0.0), Shininess);
+            vec4 specular = Ks*SpecularProduct;
 
-        float Ks = pow(max(dot(N, H), 0.0), Shininess);
-        vec4 specular = Ks*SpecularProduct;
+            // discard the specular highlight if the light's behind the vertex
+            if( dot(L, N) < 0.0 ) {
+                specular = vec4(0.0, 0.0, 0.0, 1.0);
+            }
 
-        // discard the specular highlight if the light's behind the vertex
-        if( dot(L, N) < 0.0 ) {
-            specular = vec4(0.0, 0.0, 0.0, 1.0);
+            fragColor = ambient + diffuse + specular;
+            fragColor.a = 1.0;
+        } else {
+            fragColor = color;
         }
+    }
 
-       fragColor = ambient + diffuse + specular;
-       fragColor.a = 1.0;
-    } else {
-      fragColor = color;
-   }
 }
