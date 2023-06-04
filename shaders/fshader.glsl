@@ -51,12 +51,12 @@ void main()
             fragColor = ambient + diffuse + specular;
             fragColor.a = 1.0;
 
-            if (IsBlack == 1) {
-              fragColor = color;
-            }
 
         } else {
             fragColor = color;
         }
+    }
+    if (IsBlack == 1) {
+      fragColor = color;
     }
 }

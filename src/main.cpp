@@ -541,24 +541,24 @@ void update() {
   // bounce the object off the floor (while reducing its speed overall on each
   // bounce)
 
-  // const float floor = 0.5f;
-  // if (displacement.y <
-  //     (std::tan(29.0 / 2 * DegreesToRadians) * start_displacement.z +
-  //      scalar * radius) +
-  //         floor) {
-  //   displacement.y =
-  //       (GLfloat)std::tan(29.0 / 2 * DegreesToRadians) * start_displacement.z
-  //       + scalar * radius + floor;
-  //   velocity.y = -velocity.y * 0.75f;
-  //   velocity.x = velocity.x * 0.85f;
-  // }
-
   const float floor = 0.5f;
-  if (displacement.y < radius) {
-    displacement.y = radius;
+  if (displacement.y <
+      (std::tan(29.0 / 2 * DegreesToRadians) * start_displacement.z +
+       scalar * radius) +
+          floor) {
+    displacement.y =
+        (GLfloat)std::tan(29.0 / 2 * DegreesToRadians) * start_displacement.z +
+        scalar * radius + floor;
     velocity.y = -velocity.y * 0.75f;
     velocity.x = velocity.x * 0.85f;
   }
+
+  // const float floor = 0.5f;
+  // if (displacement.y < radius) {
+  //   displacement.y = radius;
+  //   velocity.y = -velocity.y * 0.75f;
+  //   velocity.x = velocity.x * 0.85f;
+  // }
 
   if (follow) {
     light_position.x = displacement.x;
@@ -585,37 +585,51 @@ void update() {
 
     // Creating the shadow
     mat4 shadow_projection;
-    shadow_projection[3][1] = -1 / light_position.y;
+    // shadow_projection[3][1] = -1 / light_position.y;
+    shadow_projection[3][1] = -1 / (light_position.y + displacement.y / 10);
     shadow_projection[3][3] = 0;
 
-    float dot;
-    mat4 shadowMat;
-    vec4 ground = vec4(0.0, 1.0, 0.0, 0.0);
+    // shadow generation (NOT USED CURRENTLY)
+    // source from:
+    // http://www.bluevoid.com/opengl/sig00/advanced00/notes/node199.htmlhttp://www.bluevoid.com/opengl/sig00/advanced00/notes/node199.htmlhttp://www.bluevoid.com/opengl/sig00/advanced00/notes/node199.html
 
-    dot = ground[0] * light_position[0] + ground[1] * light_position[1] +
-          ground[2] * light_position[2] + ground[3] * light_position[3];
+    // float dot;
+    // mat4 shadowMat;
+    // vec4 ground = vec4(0.0, 1.0, 0.0, 1 / (displacement.y + 0.5));
+    //
+    // dot = ground[0] * light_position[0] + ground[1] * light_position[1] +
+    //       ground[2] * light_position[2] + ground[3] * light_position[3];
+    //
+    // shadowMat[0][0] = dot - light_position[0] * ground[0];
+    // shadowMat[1][0] = 0.0 - light_position[0] * ground[1];
+    // shadowMat[2][0] = 0.0 - light_position[0] * ground[2];
+    // shadowMat[3][0] = 0.0 - light_position[0] * ground[3];
+    //
+    // shadowMat[0][1] = 0.0 - light_position[1] * ground[0];
+    // shadowMat[1][1] = dot - light_position[1] * ground[1];
+    // shadowMat[2][1] = 0.0 - light_position[1] * ground[2];
+    // shadowMat[3][1] = 0.0 - light_position[1] * ground[3];
+    //
+    // shadowMat[0][2] = 0.0 - light_position[2] * ground[0];
+    // shadowMat[1][2] = 0.0 - light_position[2] * ground[1];
+    // shadowMat[2][2] = dot - light_position[2] * ground[2];
+    // shadowMat[3][2] = 0.0 - light_position[2] * ground[3];
+    //
+    // shadowMat[0][3] = 0.0 - light_position[3] * ground[0];
+    // shadowMat[1][3] = 0.0 - light_position[3] * ground[1];
+    // shadowMat[2][3] = 0.0 - light_position[3] * ground[2];
+    // shadowMat[3][3] = dot - light_position[3] * ground[3];
 
-    shadowMat[0][0] = dot - light_position[0] * ground[0];
-    shadowMat[1][0] = 0.0 - light_position[0] * ground[1];
-    shadowMat[2][0] = 0.0 - light_position[0] * ground[2];
-    shadowMat[3][0] = 0.0 - light_position[0] * ground[3];
+    // mat4 shadow_model_view = model_view * shadowMat;
 
-    shadowMat[0][1] = 0.0 - light_position[1] * ground[0];
-    shadowMat[1][1] = dot - light_position[1] * ground[1];
-    shadowMat[2][1] = 0.0 - light_position[1] * ground[2];
-    shadowMat[3][1] = 0.0 - light_position[1] * ground[3];
+    // mat4 shadow_model_view =
+    //     model_view * Translate(0, -displacement.y, 0) * shadowMat;
 
-    shadowMat[0][2] = 0.0 - light_position[2] * ground[0];
-    shadowMat[1][2] = 0.0 - light_position[2] * ground[1];
-    shadowMat[2][2] = dot - light_position[2] * ground[2];
-    shadowMat[3][2] = 0.0 - light_position[2] * ground[3];
-
-    shadowMat[0][3] = 0.0 - light_position[3] * ground[0];
-    shadowMat[1][3] = 0.0 - light_position[3] * ground[1];
-    shadowMat[2][3] = 0.0 - light_position[3] * ground[2];
-    shadowMat[3][3] = dot - light_position[3] * ground[3];
-
-    mat4 shadow_model_view = model_view * shadowMat;
+    mat4 shadow_model_view =
+        model_view * Translate(0, -0.30 - displacement.y * 1.1, 0) *
+        Translate(light_position.x, light_position.y, light_position.z) *
+        shadow_projection *
+        Translate(-light_position.x, -light_position.y, -light_position.z);
 
     glUniform1i(isBlackLoc, 1);
     glUniformMatrix4fv(ModelView, 1, GL_TRUE, shadow_model_view);
