@@ -5,6 +5,7 @@ in  vec2 vTexCoord2D;
 in  float vTexCoord1D;
 
 
+uniform int IsBlack;
 uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
 uniform mat4 ModelView;
 uniform mat4 Projection;
@@ -68,5 +69,10 @@ void main()
         color.a = 1.0;
       }
     }
+
+    if (IsBlack==1) {
+      color = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+
     gl_Position = Projection * ModelView * vPosition;
 }
