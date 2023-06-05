@@ -7,7 +7,6 @@ in vec4 color;
 in vec2 texCoord2D;
 in float texCoord1D;
 
-uniform int IsBlack;
 uniform vec4 AmbientProduct, DiffuseProduct, SpecularProduct;
 uniform float Shininess;
 uniform bool ShadingType;
@@ -20,7 +19,6 @@ out vec4 fragColor;
 
 void main()
 {
-
     if (RenderMode==2) {
         if(textureType){
             fragColor = texture(tex2D, texCoord2D);
@@ -55,8 +53,5 @@ void main()
         } else {
             fragColor = color;
         }
-    }
-    if (IsBlack == 1) {
-      fragColor = color;
     }
 }
