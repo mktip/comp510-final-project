@@ -2,10 +2,11 @@
 // TODOS:
 // - [X] Create ground (phase-1)
 // - [X] Create wall   (phase-1)
-// - [ ] Cast the shadow of a static object on the wall/ground (phase-2)
-// - [ ] Cast the shadow of a dynamic object on the wall/ground (phase-2)
-// - [ ] Create a complex object to cast shadow on (phase-3)
-// - [ ] Cast the shadow on the complex object (phase-2)
+// - [X] Create static spheres
+// - [X] Cast the shadow of a static object on the wall/ground (phase-2)
+// - [X] Cast the shadow of a dynamic object on the wall/ground (phase-2)
+// - [X] Create a complex object to cast shadow on (phase-3)
+// - [X]dwasdawdsawdas Cast the shadow on the complex object (phase-2)
 
 //  Display a rotating cube
 
@@ -19,24 +20,28 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
+
+#include "cube.hpp"
+#include "sphere.hpp"
 using namespace std;
 
 // Window size in pixels
 const int xpix = 1024;
 const int ypix = 768;
+GLfloat far_plane = 60.0f;
 const GLfloat screen_ratio = (GLfloat)xpix / (GLfloat)ypix;
+const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 bool follow = false;
 
-// Sphere constants
-#define SECTOR_COUNT 30
-#define STACK_COUNT 30
+// Shadow mapping vars
+unsigned int depthCubemap;
+unsigned int depthMapFBO;
 
 // Object size modifier
 const GLfloat radius = 0.1;
 bool shadows = false;
 
 // The number of vertices in each object
-const int NumSphereVertices = SECTOR_COUNT * STACK_COUNT * 6;
 
 typedef vec4 color4;
 typedef vec4 point4;
@@ -48,10 +53,6 @@ std::vector<GLubyte> image2;
 GLint image1size[2];
 GLint image2size[2];
 std::vector<GLubyte> image3;
-
-// point arrays for the object
-// vec2 sphere_tex_2d_coordinates[NumSphereVertices];
-// GLfloat sphere_tex_1d_coordinates[NumSphereVertices];
 
 enum { Shading = 0, Wireframe = 1, Texture = 2, NumRenderModes = 3 };
 
@@ -75,12 +76,8 @@ GLboolean textureType = true;
 GLint ModelView, Projection, renderModeLoc, isBlackLoc, shadingTypeLoc,
     textureTypeLoc, tex2DSamplerLoc, tex1DSamplerLoc;
 
-void update_shader_lighting_parameters(color4 material_ambient,
-                                       color4 material_diffuse,
-                                       color4 material_specular,
-                                       GLfloat material_shininess);
-
-GLuint program = 0;
+GLuint og_program = 0;
+GLuint sh_program = 0;
 
 // Have an error callback to make sure to catch any errors
 void errorCallback(int error, const char *description) {
@@ -88,7 +85,7 @@ void errorCallback(int error, const char *description) {
 }
 
 mat4 projection;
-point4 light_position;
+mat4 sh_projection;
 
 color4 colors[7] = {
     color4(0.0, 0.0, 0.0, 1.0), // black
@@ -98,315 +95,6 @@ color4 colors[7] = {
     color4(0.0, 0.0, 1.0, 1.0), // blue
     color4(1.0, 1.0, 1.0, 1.0), // white
     color4(1.0, 0.5, 0.0, 1.0), // orange
-};
-
-class Cube {
-public:
-  point4 initial_position;
-  vector<point4> points;
-  vector<vec3> normals;
-  vector<point4> vertices;
-  vector<color4> materials;
-  mat4 model_view;
-  GLuint vao;
-  GLuint buffer;
-
-  GLuint trig_indices[36] = {1, 0, 3, 1, 3, 2, 2, 3, 7, 2, 7, 6,
-                             3, 0, 4, 3, 4, 7, 6, 5, 1, 6, 1, 2,
-                             4, 5, 6, 4, 6, 7, 5, 4, 0, 5, 0, 1};
-  Cube()
-      : initial_position(0.0, 0.0, 0.0, 1.0), points(8), normals(0),
-        vertices(0), materials(0), model_view(), vao(), buffer() {}
-
-  Cube(GLfloat edge_length, const point4 &_initial_position,
-       vector<color4> face_colors)
-      : initial_position(_initial_position), points(8), normals(0), vertices(0),
-        materials(0), model_view(), vao(), buffer() {
-
-    // Initialize the main_rubix_cube
-    model_view = mat4();
-    points[0] = point4(-edge_length, -edge_length, edge_length, 1.0);
-    points[1] = point4(-edge_length, edge_length, edge_length, 1.0);
-    points[2] = point4(edge_length, edge_length, edge_length, 1.0);
-    points[3] = point4(edge_length, -edge_length, edge_length, 1.0);
-    points[4] = point4(-edge_length, -edge_length, -edge_length, 1.0);
-    points[5] = point4(-edge_length, edge_length, -edge_length, 1.0);
-    points[6] = point4(edge_length, edge_length, -edge_length, 1.0);
-    points[7] = point4(edge_length, -edge_length, -edge_length, 1.0);
-
-    // Initialize the polygons
-    vec3 current_normal = 0;
-    for (int i = 35; i > -1; i--) {
-      vertices.emplace_back(points[trig_indices[i]]);
-    }
-
-    for (unsigned int i = 0; i < 36; i++) {
-      if (i % 6 == 0) {
-        vec4 u = vertices[i + 1] - vertices[i];
-        vec4 v = vertices[i + 2] - vertices[i + 1];
-        current_normal = normalize(cross(u, v));
-      }
-
-      normals.emplace_back(current_normal);
-    }
-
-    mat4 translation =
-        Translate(initial_position.x, initial_position.y, initial_position.z);
-    model_view = model_view * translation;
-
-    for (size_t i = 0; i < vertices.size() / 6; i++) {
-      materials.emplace_back(face_colors[i] * 0.6);
-      materials.emplace_back(face_colors[i] * 0.8);
-      materials.emplace_back(face_colors[i] * 0.2);
-    }
-  }
-
-  void load() {
-
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
-    glBufferData(GL_ARRAY_BUFFER,
-                 vertices.size() * sizeof(point4) +
-                     normals.size() * sizeof(vec3),
-                 NULL, GL_STATIC_DRAW);
-
-    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(point4),
-                    vertices.data());
-
-    glBufferSubData(GL_ARRAY_BUFFER, vertices.size() * sizeof(point4),
-                    normals.size() * sizeof(vec3), normals.data());
-
-    // set up vertex arrays
-    GLuint vPosition = glGetAttribLocation(program, "vPosition");
-    glEnableVertexAttribArray(vPosition);
-    glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0,
-                          BUFFER_OFFSET(0));
-
-    GLuint vNormal = glGetAttribLocation(program, "vNormal");
-    glEnableVertexAttribArray(vNormal);
-    glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0,
-                          BUFFER_OFFSET(sizeof(point4) * vertices.size()));
-  }
-
-  void draw() const {
-    glBindVertexArray(vao);
-    glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
-
-    // Draw the main_rubix_cube
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    for (int i = 0; i < 6; i++) {
-
-      update_shader_lighting_parameters(materials[i * 3], materials[i * 3 + 1],
-                                        materials[i * 3 + 2], 100.0f);
-      glDrawArrays(GL_TRIANGLES, i * 6, 6);
-    }
-
-    // glDrawArrays(GL_TRIANGLES, 0, 36);
-
-    glFlush();
-  }
-
-  void rotateX(GLfloat theta) {
-    mat4 rotation = RotateX(theta);
-    model_view = rotation * model_view;
-  }
-
-  void rotateY(GLfloat theta) {
-    mat4 rotation = RotateY(theta);
-    model_view = rotation * model_view;
-  }
-
-  void rotateZ(GLfloat theta) {
-    mat4 rotation = RotateZ(theta);
-    model_view = rotation * model_view;
-  }
-
-  void translate(GLfloat x, GLfloat y, GLfloat z) {
-    // Translate the main_rubix_cube
-    mat4 translation = Translate(x, y, z);
-    model_view = translation * model_view;
-  }
-};
-
-class Sphere {
-  point4 sphere_points[NumSphereVertices];
-  vec3 sphere_normals[NumSphereVertices];
-  vec2 sphere_tex_2d_coordinates[NumSphereVertices];
-  GLfloat sphere_tex_1d_coordinates[NumSphereVertices];
-  GLuint vao;
-  GLuint sphere_buffer;
-  vec3 displacement = vec3(-0.5, 0.5, -3);
-  GLfloat scalar = 1.0f;
-  GLfloat rotate = 0.0f;
-  vec3 velocity = vec3(0.5, 0.0, 0.0);
-  vec3 start_velocity = vec3(0.5, 0.0, 0.0);
-  vec3 start_displacement = vec3(-0.5, 0.5, -3);
-  GLfloat y_acceleration = -9.8f;
-  GLfloat dt = 0.01f;
-
-public:
-  Sphere() { create_sphere(); }
-
-  void draw() {
-    // compute the effect of gravity on the cube
-    displacement.y =
-        displacement.y + velocity.y * dt + 0.5f * y_acceleration * dt * dt;
-    displacement.x = displacement.x + velocity.x * dt;
-
-    // keep the cube moving horizontally
-    velocity.y = velocity.y + y_acceleration * dt;
-
-    // bounce the object off the floor (while reducing its speed overall on each
-    // bounce)
-
-    // displacement.y <
-    // (std::tan(29.0 / 2 * DegreesToRadians) * start_displacement.z +
-    //  scalar * radius) +
-    //     floor) {
-    //
-    const float floor = -0.5;
-    if (displacement.y < scalar * radius + floor) {
-      // displacement.y = (GLfloat)std::tan(29.0 / 2 * DegreesToRadians) *
-      //                      start_displacement.z +
-      //                  scalar * radius + floor;
-
-      displacement.y = scalar * radius + floor;
-      velocity.y = -velocity.y * 0.75f;
-      velocity.x = velocity.x * 0.85f;
-    }
-
-    glBindVertexArray(vao);
-    //  Generate the model-view matrix
-    mat4 model_view = Translate(displacement) *
-                      Scale(vec3(scalar, scalar, scalar)) * RotateY(rotate);
-
-    rotate += 0.5;
-    glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
-    glPolygonMode(GL_FRONT, GL_FILL);
-    glDrawArrays(GL_TRIANGLES, 0, NumSphereVertices);
-  }
-
-  void load() {
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    glGenBuffers(1, &sphere_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, sphere_buffer);
-
-    glBufferData(GL_ARRAY_BUFFER,
-                 sizeof(sphere_points) + sizeof(sphere_normals) +
-                     sizeof(sphere_tex_2d_coordinates) +
-                     sizeof(sphere_tex_1d_coordinates),
-                 nullptr, GL_STATIC_DRAW);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(sphere_points), sphere_points);
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(sphere_points),
-                    sizeof(sphere_normals), sphere_normals);
-    glBufferSubData(
-        GL_ARRAY_BUFFER, sizeof(sphere_points) + sizeof(sphere_normals),
-        sizeof(sphere_tex_2d_coordinates), sphere_tex_2d_coordinates);
-    glBufferSubData(GL_ARRAY_BUFFER,
-                    sizeof(sphere_points) + sizeof(sphere_normals) +
-                        sizeof(sphere_tex_2d_coordinates),
-                    sizeof(sphere_tex_1d_coordinates),
-                    sphere_tex_1d_coordinates);
-
-    // set up vertex arrays
-    GLuint vPosition = glGetAttribLocation(program, "vPosition");
-    glEnableVertexAttribArray(vPosition);
-    glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0,
-                          BUFFER_OFFSET(0));
-
-    GLuint vNormal = glGetAttribLocation(program, "vNormal");
-    glEnableVertexAttribArray(vNormal);
-    glVertexAttribPointer(vNormal, 3, GL_FLOAT, GL_FALSE, 0,
-                          BUFFER_OFFSET(sizeof(sphere_points)));
-
-    GLuint vTexCoord2D = glGetAttribLocation(program, "vTexCoord2D");
-    glEnableVertexAttribArray(vTexCoord2D);
-    glVertexAttribPointer(
-        vTexCoord2D, 2, GL_FLOAT, GL_FALSE, 0,
-        BUFFER_OFFSET(sizeof(sphere_points) + sizeof(sphere_normals)));
-
-    GLuint vTexCoord1D = glGetAttribLocation(program, "vTexCoord1D");
-    glEnableVertexAttribArray(vTexCoord1D);
-    glVertexAttribPointer(vTexCoord1D, 1, GL_FLOAT, GL_FALSE, 0,
-                          BUFFER_OFFSET(sizeof(sphere_points) +
-                                        sizeof(sphere_normals) +
-                                        sizeof(sphere_tex_2d_coordinates)));
-  }
-
-  void create_sphere() {
-    std::vector<vec4> sphere_vertices;
-    std::vector<vec3> tmp_sphere_normals;
-    std::vector<vec2> tmp_sphere_tex_2d_coords;
-    std::vector<GLfloat> tmp_sphere_tex_1d_coords;
-
-    float x, y, z, xz; // vertex position
-
-    float sectorStep = 2 * M_PI / SECTOR_COUNT;
-    float stackStep = M_PI / STACK_COUNT;
-    float sectorAngle, stackAngle;
-
-    for (int i = 0; i <= STACK_COUNT; ++i) {
-
-      stackAngle =
-          M_PI / 2 - (float)i * stackStep; // starting from pi/2 to -pi/2
-      xz = radius * cosf(stackAngle);      // r * cos(u)
-      y = radius * sinf(stackAngle);       // r * sin(u)
-
-      // add (sectorCount+1) vertices per stack
-      // the first and last vertices have same position and normal, but
-      // different tex coords
-      for (int j = 0; j <= SECTOR_COUNT; ++j) {
-        sectorAngle = (float)j * sectorStep; // starting from 0 to 2pi
-
-        // vertex position (x, y, z)
-        z = xz * cosf(sectorAngle); // r * cos(u) * cos(v)
-        x = xz * sinf(sectorAngle); // r * cos(u) * sin(v)
-        sphere_vertices.emplace_back(x, y, z, 1.0);
-        tmp_sphere_normals.emplace_back(x, y, z);
-        tmp_sphere_tex_2d_coords.emplace_back((float)j / SECTOR_COUNT,
-                                              (float)i / STACK_COUNT);
-        tmp_sphere_tex_1d_coords.emplace_back((float)j / SECTOR_COUNT);
-      }
-    }
-
-    std::vector<int> sphere_indices;
-    int k1, k2;
-    for (int i = 0; i < STACK_COUNT; ++i) {
-      k1 = i * (SECTOR_COUNT + 1); // beginning of current stack
-      k2 = k1 + SECTOR_COUNT + 1;  // beginning of next stack
-
-      for (int j = 0; j < SECTOR_COUNT; ++j, ++k1, ++k2) {
-        // 2 triangles per sector excluding first and last stacks
-        // k1 => k2 => k1+1
-        if (i != 0) {
-          sphere_indices.push_back(k1);
-          sphere_indices.push_back(k2);
-          sphere_indices.push_back(k1 + 1);
-        }
-
-        // k1+1 => k2 => k2+1
-        if (i != (STACK_COUNT - 1)) {
-          sphere_indices.push_back(k1 + 1);
-          sphere_indices.push_back(k2);
-          sphere_indices.push_back(k2 + 1);
-        }
-      }
-    }
-
-    for (int i = 0; i < sphere_indices.size(); i++) {
-      sphere_points[i] = sphere_vertices[sphere_indices[i]];
-      sphere_normals[i] = tmp_sphere_normals[sphere_indices[i]];
-      sphere_tex_2d_coordinates[i] =
-          tmp_sphere_tex_2d_coords[sphere_indices[i]];
-      sphere_tex_1d_coordinates[i] =
-          tmp_sphere_tex_1d_coords[sphere_indices[i]];
-    }
-  }
 };
 
 void create1DImage() {
@@ -461,142 +149,78 @@ void readPPMImage(const char *fn, std::vector<GLubyte> &image, GLint *imgSize) {
     }
   }
 }
-
-Sphere sphere;
+Light light;
+Sphere sphere(1.5,
+              vector<vec4>({colors[1] * 0.8, colors[2] * 0.8, colors[3] * 0.2}),
+              50.0f);
 
 Cube cube(15, vec4(0, 0, 0, 1),
           vector<vec4>({colors[1], colors[2], colors[3], colors[4], colors[5],
                         colors[6]}));
 void init() {
 
-  // Load shaders and use the resulting shader program
+  glGenTextures(1, &depthCubemap);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
 
-  // Create/load the points for each object
-  readPPMImage("assets/earth.ppm", image1, image1size);
-  readPPMImage("assets/basketball.ppm", image2, image2size);
-  create1DImage();
-  // Initialize texture objects
-  glGenTextures(3, textures);
+  glGenFramebuffers(1, &depthMapFBO);
 
-  glActiveTexture(GL_TEXTURE0 + textureSelect);
-  glBindTexture(GL_TEXTURE_2D, textures[textureSelect]);
+  for (unsigned int i = 0; i < 6; ++i)
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
+                 SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT,
+                 NULL);
 
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-                  GL_LINEAR_MIPMAP_LINEAR); // try here different alternatives
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                  GL_LINEAR_MIPMAP_LINEAR); // try here different alternatives
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image1size[0], image1size[1], 0,
-               GL_RGB, GL_UNSIGNED_BYTE, image1.data());
-  glGenerateMipmap(GL_TEXTURE_2D);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
-  textureSelect++;
-  glActiveTexture(GL_TEXTURE0 + textureSelect);
-  glBindTexture(GL_TEXTURE_2D, textures[textureSelect]);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-                  GL_LINEAR_MIPMAP_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                  GL_LINEAR_MIPMAP_LINEAR);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image2size[0], image2size[1], 0,
-               GL_RGB, GL_UNSIGNED_BYTE, image2.data());
-  glGenerateMipmap(GL_TEXTURE_2D);
+  glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+  glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
+  glDrawBuffer(GL_NONE);
+  glReadBuffer(GL_NONE);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-  textureSelect++;
-  glActiveTexture(GL_TEXTURE0 + textureSelect);
-  glBindTexture(GL_TEXTURE_1D, textures[textureSelect]);
-  glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER,
-                  GL_LINEAR_MIPMAP_LINEAR);
-  glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER,
-                  GL_LINEAR_MIPMAP_LINEAR);
-  glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, 1024, 0, GL_RGB, GL_UNSIGNED_BYTE,
-               image3.data());
-  glGenerateMipmap(GL_TEXTURE_1D);
+  sh_program =
+      InitShaderWithGeo("shaders/sh_vshader.glsl", "shaders/sh_gshader.glsl",
+                        "shaders/sh_fshader.glsl");
 
-  textureSelect = 0;
+  glUniform1f(glGetUniformLocation(sh_program, "far_plane"), far_plane);
 
-  // Create a vertex array object
+  og_program = InitShader("shaders/vshader.glsl", "shaders/fshader.glsl");
 
-  program = InitShader("shaders/vshader.glsl", "shaders/fshader.glsl");
-  glUseProgram(program);
+  sphere.load(og_program);
+  cube.load(og_program);
 
-  // sphere.load();
-
-  cube.load();
-
-  // update_shader_lighting_parameters();
   // Retrieve transformation uniform variable locations
-  ModelView = glGetUniformLocation(program, "ModelView");
-  Projection = glGetUniformLocation(program, "Projection");
-  shadingTypeLoc = glGetUniformLocation(program, "ShadingType");
-  renderModeLoc = glGetUniformLocation(program, "RenderMode");
-  isBlackLoc = glGetUniformLocation(program, "IsBlack");
-  textureTypeLoc = glGetUniformLocation(program, "textureType");
-  tex2DSamplerLoc = glGetUniformLocation(program, "tex2D");
-  tex1DSamplerLoc = glGetUniformLocation(program, "tex1D");
+  ModelView = glGetUniformLocation(og_program, "ModelView");
+  Projection = glGetUniformLocation(og_program, "Projection");
+  shadingTypeLoc = glGetUniformLocation(og_program, "ShadingType");
+  renderModeLoc = glGetUniformLocation(og_program, "RenderMode");
+  isBlackLoc = glGetUniformLocation(og_program, "IsBlack");
+  textureTypeLoc = glGetUniformLocation(og_program, "textureType");
+  tex2DSamplerLoc = glGetUniformLocation(og_program, "tex2D");
+  tex1DSamplerLoc = glGetUniformLocation(og_program, "tex1D");
 
+  glUniform1f(glGetUniformLocation(og_program, "far_plane"), far_plane);
   glUniform1i(renderModeLoc, renderMode);
   glUniform1i(shadingTypeLoc, shadingType);
   glUniform1i(textureTypeLoc, textureType);
   glUniform1i(isBlackLoc, 0);
   glUniform1i(tex2DSamplerLoc, textureSelect);
   glUniform1i(tex1DSamplerLoc, 2);
-
+  glUniform1i(tex1DSamplerLoc, 2);
+  glUniform1i(glGetUniformLocation(og_program, "depthMap"), 0);
   // Set projection matrix
   projection = Perspective(120, screen_ratio, 0.1, 100);
+  sh_projection = Perspective(90, (float)SHADOW_WIDTH / (float)SHADOW_HEIGHT,
+                              0.1, far_plane);
+
   glUniformMatrix4fv(Projection, 1, GL_TRUE, projection);
 
   glEnable(GL_DEPTH_TEST);
-  // glEnable(GL_CULL_FACE);
-  glClearColor(1.0, 1.0, 1.0, 1.0);
-}
-
-void update_shader_lighting_parameters(color4 material_ambient,
-                                       color4 material_diffuse,
-                                       color4 material_specular,
-                                       GLfloat material_shininess) {
-  // Initialize shader lighting parameters
-  light_position = vec4(-0, 0, -10, 1);
-  color4 light_ambient(0.2, 0.2, 0.2, 1.0);
-  color4 light_diffuse(1.0, 1.0, 1.0, 1.0);
-  color4 light_specular(1.0, 1.0, 1.0, 1.0);
-
-  color4 ambient_product = light_ambient * material_ambient;
-  color4 diffuse_product = light_diffuse * material_diffuse;
-  color4 specular_product = light_specular * material_specular;
-
-  switch (shadingMode) {
-  case NO_AMBIENT:
-    ambient_product = color4(0, 0, 0, 1);
-    specular_product = color4(0, 0, 0, 1);
-    diffuse_product = color4(0, 0, 0, 1);
-    break;
-  case NO_DIFFUSE:
-    specular_product = color4(0, 0, 0, 1);
-    diffuse_product = color4(0, 0, 0, 1);
-    break;
-  case NO_SPECULAR:
-    specular_product = color4(0, 0, 0, 1);
-    break;
-  case ALL:
-    break;
-  }
-
-  glUniform4fv(glGetUniformLocation(program, "AmbientProduct"), 1,
-               ambient_product);
-  glUniform4fv(glGetUniformLocation(program, "DiffuseProduct"), 1,
-               diffuse_product);
-  glUniform4fv(glGetUniformLocation(program, "SpecularProduct"), 1,
-               specular_product);
-
-  glUniform4fv(glGetUniformLocation(program, "LightPosition"), 1,
-               light_position);
-
-  glUniform1f(glGetUniformLocation(program, "Shininess"), material_shininess);
+  glEnable(GL_CULL_FACE);
+  glClearColor(0.0, 0.0, 0.0, 1.0);
 }
 
 void key_callback(__attribute_maybe_unused__ GLFWwindow *window, int key,
@@ -704,6 +328,7 @@ GLfloat dt = 0.01;
 
 void update() {
 
+  light.move();
   switch (renderMode) {
   case Shading:
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -721,15 +346,70 @@ void update() {
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+  // Generate Cube depth map texture
+  // --------------------------------
+
+  vector<mat4> shadowTransforms;
+  shadowTransforms.push_back(
+      sh_projection * LookAt(light.get_position(),
+                             light.get_position() + vec3(1.0f, 0.0f, 0.0f),
+                             vec3(0.0f, -1.0f, 0.0f)));
+  shadowTransforms.push_back(
+      sh_projection * LookAt(light.get_position(),
+                             light.get_position() + vec3(-1.0f, 0.0f, 0.0f),
+                             vec3(0.0f, -1.0f, 0.0f)));
+  shadowTransforms.push_back(
+      sh_projection * LookAt(light.get_position(),
+                             light.get_position() + vec3(0.0f, 1.0f, 0.0f),
+                             vec3(0.0f, 0.0f, 1.0f)));
+  shadowTransforms.push_back(
+      sh_projection * LookAt(light.get_position(),
+                             light.get_position() + vec3(0.0f, -1.0f, 0.0f),
+                             vec3(0.0f, 0.0f, -1.0f)));
+  shadowTransforms.push_back(
+      sh_projection * LookAt(light.get_position(),
+                             light.get_position() + vec3(0.0f, 0.0f, 1.0f),
+                             vec3(0.0f, -1.0f, 0.0f)));
+  shadowTransforms.push_back(
+      sh_projection * LookAt(light.get_position(),
+                             light.get_position() + vec3(0.0f, 0.0f, -1.0f),
+                             vec3(0.0f, -1.0f, 0.0f)));
+
+  // 1. render scene to depth cubemap
+  // --------------------------------
+  glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+  glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+  glClear(GL_DEPTH_BUFFER_BIT);
+
+  glUseProgram(sh_program);
+  for (unsigned int i = 0; i < 6; ++i) {
+    GLuint faceShadowMatrix = glGetUniformLocation(
+        sh_program, ("shadowMatrices[" + std::to_string(i) + "]").c_str());
+
+    glUniformMatrix4fv(faceShadowMatrix, 1, GL_TRUE, shadowTransforms[i]);
+  }
+
+  glUniform4fv(glGetUniformLocation(sh_program, "LightPosition"), 1,
+               light.get_position());
+  cube.draw(sh_program, light);
+  sphere.draw(sh_program, light);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+  glViewport(0, 0, xpix, ypix);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glUseProgram(og_program);
+
   //  Generate the model-view matrix
 
-  glUniform4fv(glGetUniformLocation(program, "LightPosition"), 1,
-               light_position);
+  glUniform4fv(glGetUniformLocation(og_program, "LightPosition"), 1,
+               light.get_position());
 
-  // sphere.draw();
-  cube.rotateY(1);
-  cube.rotateX(1);
-  cube.draw();
+  // cube.rotateY(1);
+  // cube.rotateX(1);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+  cube.draw(og_program, light);
+  sphere.draw(og_program, light);
 
   // mat4 model_view = Translate(displacement) *
   //                   Scale(vec3(scalar, scalar, scalar)); // *
@@ -777,9 +457,9 @@ int main() {
     // currentTime = glfwGetTime();
     // if (currentTime - previousTime >= 1 / frameRate) {
     // previousTime = currentTime;
-    update();
     // }
 
+    update();
     glfwSwapBuffers(window);
     glfwPollEvents();
   }

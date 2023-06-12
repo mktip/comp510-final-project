@@ -19,7 +19,7 @@
 
 //  Define M_PI in the case it's not defined in the math header file
 #ifndef M_PI
-#  define M_PI  3.14159265358979323846
+#define M_PI 3.14159265358979323846
 #endif
 
 //----------------------------------------------------------------------------
@@ -32,13 +32,13 @@
 //
 
 #ifdef __APPLE__
-    #include <OpenGL/gl3.h>
+#include <OpenGL/gl3.h>
 #else
-    #include <GL/glew.h>
+#include <GL/glew.h>
 #endif
 #include <GLFW/glfw3.h>
 // Define a helpful macro for handling offsets into buffer objects
-#define BUFFER_OFFSET( offset )   ((GLvoid*) (offset))
+#define BUFFER_OFFSET(offset) ((GLvoid *)(offset))
 
 //----------------------------------------------------------------------------
 //
@@ -47,23 +47,26 @@
 
 namespace Angel {
 
-    //  Helper function to load vertex and fragment shader files
-    GLuint InitShader( const char* vertexShaderFile,
-                      const char* fragmentShaderFile );
+//  Helper function to load vertex and fragment shader files
+GLuint InitShader(const char *vertexShaderFile, const char *fragmentShaderFile);
 
-    //  Defined constant for when numbers are too small to be used in the
-    //    denominator of a division operation.  This is only used if the
-    //    DEBUG macro is defined.
-    const GLfloat  DivideByZeroTolerance = GLfloat(1.0e-07);
+GLuint InitShaderWithGeo(const char *vertexShaderFile,
+                         const char *geometryShaderFile,
+                         const char *fragmentShaderFile);
 
-    //  Degrees-to-radians constant
-    const GLfloat  DegreesToRadians = M_PI / 180.0;
+//  Defined constant for when numbers are too small to be used in the
+//    denominator of a division operation.  This is only used if the
+//    DEBUG macro is defined.
+const GLfloat DivideByZeroTolerance = GLfloat(1.0e-07);
 
-}  // namespace Angel
+//  Degrees-to-radians constant
+const GLfloat DegreesToRadians = M_PI / 180.0;
 
-#include "vec.h"
+} // namespace Angel
+
 #include "mat.h"
-//#include "CheckError.h"
+#include "vec.h"
+// #include "CheckError.h"
 
 // #define Print(x)  do { std::cerr << #x " = " << (x) << std::endl; } while(0)
 

@@ -20,6 +20,8 @@ out vec3 fL;
 out vec2 texCoord2D;
 out float texCoord1D;
 
+out vec3 FragPos;
+
 void main()
 {
     if (RenderMode==2){
@@ -70,4 +72,5 @@ void main()
     }
 
     gl_Position = Projection * ModelView * vPosition;
+    FragPos = (ModelView * vPosition).xyz;
 }
