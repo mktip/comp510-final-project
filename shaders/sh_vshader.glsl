@@ -1,6 +1,5 @@
-#version 330 core
+#version 410
 in vec4 vPosition;
-
 uniform mat4 ModelView;
 
 void main()

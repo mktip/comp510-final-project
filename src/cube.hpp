@@ -92,9 +92,9 @@ public:
     model_view = model_view * translation;
 
     for (size_t i = 0; i < vertices.size() / 6; i++) {
+      materials.emplace_back(face_colors[i] * 0.2);
       materials.emplace_back(face_colors[i] * 0.6);
       materials.emplace_back(face_colors[i] * 0.8);
-      materials.emplace_back(face_colors[i] * 0.2);
     }
   }
 
@@ -139,7 +139,7 @@ public:
     for (int i = 0; i < 6; i++) {
 
       update_shader_lighting_parameters(materials[i * 3], materials[i * 3 + 1],
-                                        materials[i * 3 + 2], 100.0f, light,
+                                        materials[i * 3 + 2], 200.0f, light,
                                         program);
       glDrawArrays(GL_TRIANGLES, i * 6, 6);
     }

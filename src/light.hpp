@@ -19,7 +19,7 @@ typedef vec4 point4;
 // Sphere constants
 
 class Light {
-  vec4 light_position = vec4(-14, 14, 0, 1);
+  vec4 light_position = vec4(-10, 10, -5, 1);
   color4 light_ambient = color4(0.2, 0.2, 0.2, 1.0);
   color4 light_diffuse = color4(1.0, 1.0, 1.0, 1.0);
   color4 light_specular = color4(1.0, 1.0, 1.0, 1.0);
