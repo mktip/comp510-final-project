@@ -33,8 +33,8 @@ float ShadowCalculation(vec3 fragPos)
     float currentDepth = length(fragToLight);
     // test for shadows
     vec3 lightDir = normalize(LightPosition.xyz - fragPos);
-    float bias = max(2.0 * (1.0 - dot(normalize(fN), lightDir)), 0.5);
-    //float bias = 2.55; // we use a much larger bias since depth is now in [near_plane, far_plane] range
+    float bias = max(1.0 * (1.0 - dot(normalize(fN), lightDir)), 0.1); // we use a much larger bias since depth is now in [near_plane, far_plane] range
+    //float bias = 2.55;
 
     // display depth cubemap
     //fragColor = vec4(vec3(closestDepth / far_plane), 1.0);
@@ -88,6 +88,6 @@ void main()
         fragColor.a = 1.0;
 
     } else {
-        fragColor = (1.0 - shadow) * color;
+        fragColor = textureColor * (1.0 - shadow) * color;
     }
 }

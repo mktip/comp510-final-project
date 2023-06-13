@@ -140,8 +140,8 @@ void readPPMImage(const char *fn, std::vector<GLubyte> &image, GLint *imgSize) {
 }
 
 Light light;
-Sphere sphere1(2.0f, vec3(5, 2, -10), vector<vec4>({colors[5] * 0.1, colors[5] * 0.5, colors[5] * 1.0}), 50.0f);
-Sphere sphere2(5.0f, vec3(-8, -2, -15), vector<vec4>({colors[5] * 0.1, colors[5] * 0.5, colors[5] * 1.0}), 5.0f);
+Sphere sphere1(2.0f, vec3(5, 2, -10), vector<vec4>({colors[5] * 0.1, colors[5] * 0.7, colors[5] * 0.2}), 50.0f);
+Sphere sphere2(5.0f, vec3(-8, -2, -15), vector<vec4>({colors[5] * 0.1, colors[5] * 0.7, colors[5] * 0.2}), 5.0f);
 
 Cube cube(15, vec4(0, 0, -14, 1), vector<vec4>({colors[1], colors[2], colors[3], colors[4], colors[5], colors[6]}));
 
@@ -402,8 +402,10 @@ void update() {
     glUniform4fv(glGetUniformLocation(sh_program, "LightPosition"), 1, light.get_position());
 
     cube.draw(sh_program, light);
+    glCullFace(GL_FRONT);
     sphere1.draw(sh_program, light);
     sphere2.draw(sh_program, light);
+    glCullFace(GL_BACK);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, xpix, ypix);
