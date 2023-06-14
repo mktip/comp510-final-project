@@ -27,8 +27,8 @@
 using namespace std;
 
 // Window size in pixels
-const int xpix = 1024;
-const int ypix = 768;
+const int xpix = 1280;
+const int ypix = 960;
 GLfloat far_plane = 60.0f;
 const GLfloat screen_ratio = (GLfloat) xpix / (GLfloat) ypix;
 const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
@@ -449,7 +449,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-    GLFWwindow *window = glfwCreateWindow(xpix, ypix, "Homework 3", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(xpix, ypix, "Dynamic Shadow Demo", nullptr, nullptr);
     glfwMakeContextCurrent(window);
 
     if (!window) {

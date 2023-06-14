@@ -220,9 +220,9 @@ public:
         }
 
         if (directionX) {
-            displacement.x += 0.1;
+            displacement.x += 0.04;
         } else {
-            displacement.x -= 0.1;
+            displacement.x -= 0.04;
         }
 
         if (displacement.y < -15 + radius) {
@@ -232,9 +232,9 @@ public:
         }
 
         if (directionY) {
-            displacement.y += 0.05;
+            displacement.y += 0.02;
         } else {
-            displacement.y -= 0.05;
+            displacement.y -= 0.02;
         }
 
         //  Generate the model-view matrix
