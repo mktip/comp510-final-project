@@ -128,10 +128,11 @@ public:
                           BUFFER_OFFSET(sizeof(point4) * vertices.size()));
   }
 
-  void draw(GLuint program, Light &light) const {
+  void draw(GLuint program, Light &light) {
 
     glBindVertexArray(vao);
     GLuint ModelView = glGetUniformLocation(program, "ModelView");
+      model_view = RotateY(0.1)*model_view ;
     glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
 
     // Draw the main_rubix_cube

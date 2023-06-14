@@ -140,12 +140,12 @@ void readPPMImage(const char *fn, std::vector<GLubyte> &image, GLint *imgSize) {
 }
 
 Light light;
-Sphere sphere1(2.0f, vec3(5, 2, -10), vector<vec4>({colors[5] * 0.1, colors[5] * 0.7, colors[5] * 0.2}), 50.0f);
-Sphere sphere2(4.0f, vec3(-8, -2, -15), vector<vec4>({colors[5] * 0.1, colors[5] * 0.7, colors[5] * 0.2}), 5.0f);
-Sphere sphere3(1.0f, vec3(0, 0, -7), vector<vec4>({colors[5] * 0.1, colors[5] * 0.7, colors[5] * 0.2}), 100.0f);
+Sphere sphere1(2.0f, vec3(5, 5, 0), vector<vec4>({colors[5] * 0.1, colors[5] * 0.7, colors[5] * 0.2}), 50.0f);
+Sphere sphere2(4.0f, vec3(-8, -5, -10), vector<vec4>({colors[5] * 0.1, colors[5] * 0.7, colors[5] * 0.2}), 5.0f);
+Sphere sphere3(1.0f, vec3(0, 0, +12), vector<vec4>({colors[5] * 0.1, colors[5] * 0.7, colors[5] * 0.2}), 100.0f);
 
 
-Cube cube(15, vec4(0, 0, -14, 1), vector<vec4>({colors[1], colors[2], colors[3], colors[4], colors[5], colors[6]}));
+Cube cube(15, vec4(0, 0, 0, 1), vector<vec4>({colors[1], colors[2], colors[3], colors[4], colors[5], colors[6]}));
 
 void init() {
 
@@ -248,9 +248,8 @@ void init() {
     glUniform1i(tex2DSamplerLoc, 1);
     glUniform1i(glGetUniformLocation(og_program, "depthMap"), 0);
     // Set projection matrix
-    projection = Perspective(120, screen_ratio, 0.1, 100);
     sh_projection = Perspective(90, (float) SHADOW_WIDTH / (float) SHADOW_HEIGHT, 0.1, far_plane);
-
+    projection = Perspective(120, screen_ratio, 0.1, 100);
     glUniformMatrix4fv(Projection, 1, GL_TRUE, projection);
 
     glEnable(GL_DEPTH_TEST);

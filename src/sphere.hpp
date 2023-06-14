@@ -74,7 +74,7 @@ public:
         directionX = true;
         directionY = false;
         directionZ = false;
-        modelview = mat4();
+        modelview = Translate(start_displacement);
     }
 
     void draw(GLuint program, Light &light) {
@@ -212,11 +212,15 @@ public:
         //    velocity.x = velocity.x * 0.85f;
         //}
         rotate+=1;
+        vec3 displacement_inc=vec3();
+
         if (displacement.x <= -15 + radius) {
             directionX = true;
+            displacement_inc.x=0.04;
 
         } else if (displacement.x >= 15 - radius) {
             directionX = false;
+            displacement_inc.x=-0.04;
         }
 
         if (directionX) {
@@ -227,8 +231,10 @@ public:
 
         if (displacement.y < -15 + radius) {
             directionY = true;
+            displacement_inc.y=0.04;
         } else if (displacement.y > 15 - radius) {
             directionY = false;
+            displacement_inc.y=0.04;
         }
 
         if (directionY) {
@@ -238,7 +244,7 @@ public:
         }
 
         //  Generate the model-view matrix
-        modelview = Translate(displacement) * Scale(vec3(scalar, scalar, scalar)) * RotateY(rotate);
+        modelview = RotateY(0.1) *modelview*Translate(displacement_inc)*RotateY(-1);
     }
 
 };
